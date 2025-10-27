@@ -2,7 +2,7 @@
   "name": "ble-controller",
   "private": false,
   "version": "1.0.0",
-  "description": "A powerful web-based Bluetooth Low Energy controller for Arduino and embedded devices with multiple control modes including Terminal, RC Car, Joystick, and Smart Home interfaces",
+  "description": "Universal web-based Bluetooth controller for Arduino and embedded devices. Supports HC-06, HC-05, HM-10, ESP32 and other BLE/Bluetooth modules. Multiple control modes: Terminal, RC Car, Joystick, Smart Home",
   "type": "module",
   "author": "Alash Electronics",
   "license": "MIT",
@@ -17,13 +17,18 @@
     "web-bluetooth",
     "arduino",
     "hm-10",
+    "hc-05",
+    "hc-06",
+    "esp32",
     "iot",
     "react",
     "typescript",
     "smart-home",
     "remote-control",
     "embedded",
-    "uart"
+    "uart",
+    "robotics",
+    "pwa"
   ],
   "bugs": {
     "url": "https://github.com/yourusername/bluetoothWebApp/issues"

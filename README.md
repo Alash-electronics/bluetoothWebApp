@@ -1,6 +1,6 @@
 # BLE Controller
 
-A powerful web-based Bluetooth Low Energy (BLE) controller application for Arduino and embedded devices. Control your projects directly from your browser using the Web Bluetooth API.
+A universal web-based Bluetooth controller application for Arduino and embedded devices. Supports HC-06, HC-05, HM-10, ESP32 and other Bluetooth/BLE modules. Control your projects directly from your browser using the Web Bluetooth API.
 
 ## Features
 
@@ -37,11 +37,30 @@ The Web Bluetooth API is required for this application to function:
 
 ## Hardware Requirements
 
-- **BLE Module:** HM-10 or compatible UART-over-BLE module
-- **Microcontroller:** Arduino Uno, Nano, Mega, or any compatible board
-- **Power Supply:** Appropriate for your project (3.3V-5V depending on module)
+### Supported Bluetooth Modules
 
-**Important:** HM-10 modules require 3.3V logic levels on RX pin. Use a voltage divider when connecting to 5V Arduino boards.
+- **HM-10** - BLE 4.0 module (recommended for low power)
+- **HC-06** - Classic Bluetooth 2.0 SPP module
+- **HC-05** - Classic Bluetooth 2.0 master/slave module
+- **ESP32** - Built-in BLE and Classic Bluetooth
+- **Arduino BLE modules** - BLE Nano, Arduino Nano 33 BLE, etc.
+- **Other UART modules** - Any module with UART-over-Bluetooth
+
+### Microcontrollers
+
+- Arduino Uno, Nano, Mega, Leonardo
+- ESP32, ESP8266
+- STM32, Raspberry Pi Pico
+- Any board with UART/Serial support
+
+### Power Requirements
+
+- 3.3V-5V depending on module
+- HC-05/HC-06: 3.6V-6V (5V tolerant)
+- HM-10: 3.3V (use voltage divider on 5V boards)
+- ESP32: 3.3V
+
+**Important:** Always check your module's voltage requirements. Use voltage dividers for 3.3V modules when connecting to 5V Arduino boards.
 
 ## Quick Start
 

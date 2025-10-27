@@ -1,0 +1,53 @@
+GITHUB ABOUT SECTION
+====================
+
+Краткое описание (Description):
+-------------------------------
+Universal web-based Bluetooth controller for Arduino and embedded devices. Supports HC-06, HC-05, HM-10, ESP32 and other BLE/Bluetooth modules. Multiple control modes: Terminal, RC Car, Joystick, Smart Home. Built with React + TypeScript.
+
+Альтернативный вариант на русском:
+-----------------------------------
+Универсальная программа для управления Bluetooth устройствами через браузер. Поддерживает HC-06, HC-05, HM-10, ESP32 и другие контроллеры и модули. Режимы: терминал, управление RC машинами, джойстик, умный дом. React + TypeScript.
+
+Website (Homepage):
+-------------------
+https://alash-electronics.github.io/
+
+Topics (теги для GitHub):
+-------------------------
+bluetooth
+ble
+web-bluetooth
+arduino
+hm-10
+hc-05
+hc-06
+esp32
+iot
+react
+typescript
+smart-home
+remote-control
+embedded-systems
+uart
+robotics
+pwa
+web-application
+joystick
+terminal
+
+Короткий вариант (до 350 символов):
+------------------------------------
+Universal Bluetooth controller for Arduino & embedded devices. Supports HC-06, HC-05, HM-10, ESP32. Terminal, RC Car, Joystick & Smart Home modes. React + TypeScript + Web Bluetooth API. Cross-platform, mobile-optimized.
+
+Как добавить на GitHub:
+-----------------------
+1. Откройте страницу репозитория на GitHub
+2. Нажмите на шестеренку ⚙️ рядом с "About" (справа)
+3. Вставьте краткое описание в поле "Description"
+4. Добавьте Website: https://alash-electronics.github.io/
+5. Добавьте Topics (теги) из списка выше
+6. Поставьте галочки:
+   - ☑ Releases
+   - ☑ Packages (если будете публиковать)
+7. Нажмите "Save changes"

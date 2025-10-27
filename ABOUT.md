@@ -2,7 +2,7 @@
 
 ## Project Description
 
-BLE Controller is a modern, feature-rich web application that enables wireless control of Arduino and embedded devices directly from your browser using Bluetooth Low Energy technology. Built with React and TypeScript, it provides an intuitive interface for various IoT and robotics applications.
+BLE Controller is a universal, feature-rich web application that enables wireless control of Arduino and embedded devices directly from your browser using Bluetooth technology. Supporting a wide range of modules including HC-06, HC-05, HM-10, ESP32 and other BLE/Classic Bluetooth controllers, it provides an intuitive interface for various IoT and robotics applications. Built with React and TypeScript for reliability and performance.
 
 ## Key Highlights
 
@@ -23,6 +23,13 @@ BLE Controller is a modern, feature-rich web application that enables wireless c
 - Extensive documentation
 - Arduino example sketches included
 - Easy to customize and extend
+
+**Universal Module Support**
+- HC-06 / HC-05 (Classic Bluetooth)
+- HM-10 (BLE 4.0)
+- ESP32 (BLE & Classic)
+- Arduino BLE modules
+- Other UART-over-Bluetooth modules
 
 **Production-Ready Features**
 - Multi-language support (English, Russian, Kazakh)
