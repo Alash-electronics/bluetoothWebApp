@@ -1,5 +1,5 @@
 {
-  "name": "hm10-controller",
+  "name": "ble-controller",
   "private": true,
   "version": "0.0.0",
   "type": "module",

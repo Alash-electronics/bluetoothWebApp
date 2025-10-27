@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-HM-10 Bluetooth Controller is a React web application for controlling HM-10 Bluetooth Low Energy modules via the Web Bluetooth API. The app features multiple UI modes (Terminal, RC Car Control, Smart Home) with real-time Bluetooth communication, multi-language support (Russian, English, Kazakh), and persistent settings storage.
+BLE Controller is a React web application for controlling Bluetooth Low Energy modules via the Web Bluetooth API. The app features multiple UI modes (Terminal, RC Car Control, Joystick, Smart Home) with real-time Bluetooth communication, multi-language support (Russian, English, Kazakh), and persistent settings storage.
 
 ## Development Commands
 
@@ -77,12 +77,13 @@ useEffect(() => {
 App.tsx manages view routing through a single `viewMode` state:
 
 ```
-ViewMode = 'selection' | 'control' | 'terminal' | 'smartHome' | 'smartHomeRoom'
+ViewMode = 'selection' | 'control' | 'joystick' | 'terminal' | 'smartHome' | 'smartHomeRoom'
 ```
 
-- **selection:** DeviceSelection - entry screen with device type cards
-- **control:** ControlPanel - gamepad-style RC control interface
-- **terminal:** TerminalPanel - serial terminal with macro buttons
+- **selection:** DeviceSelection - entry screen with device type cards (auto-fullscreen)
+- **control:** ControlPanel - gamepad-style RC control interface (landscape only)
+- **joystick:** JoystickPanel - PS4-style dual joystick interface (landscape only)
+- **terminal:** TerminalPanel - serial terminal with macro buttons (portrait only)
 - **smartHome:** SmartHomePanel - room selection screen
 - **smartHomeRoom:** SmartHomeRoomControl - individual room controls (AC, etc.)
 
@@ -90,6 +91,12 @@ Navigation flow:
 1. SplashScreen (2 seconds) → DeviceSelection
 2. User selects device type → corresponding view
 3. Disconnect → automatically returns to DeviceSelection
+
+**Orientation Constraints:**
+- TerminalPanel blocks landscape mode on mobile (shows rotation overlay)
+- ControlPanel and JoystickPanel block portrait mode on mobile (shows rotation overlay)
+- Constraint applies only when screen width/height < 1024px
+- Uses JavaScript-based detection with window.innerWidth/innerHeight, not CSS media queries
 
 ### Smart Home Architecture
 
@@ -132,7 +139,8 @@ SmartHomeACConfig {
 
 Each feature has its own settings service with localStorage persistence:
 
-- **buttonSettingsService:** Control panel button configurations (RC car mode)
+- **controlPanelSettings:** Control panel button configurations (gamepad-style RC mode)
+- **buttonSettings:** Legacy button configurations (kept for compatibility)
 - **macroSettings:** Terminal macro button commands
 - **smartHomeSettings:** Smart home device/sensor/AC commands (single character per command)
 - **roomSettings:** Smart home room configurations (max 6 rooms)
@@ -212,6 +220,64 @@ const getDeviceConfig = (deviceId: string) => {
 
 ## Important UI/UX Patterns
 
+### Responsive Design and Mobile Optimization
+
+**Tailwind Breakpoint Strategy:**
+- Base styles apply to mobile portrait
+- `landscape:` modifier for mobile landscape
+- `sm:` modifier for desktop (≥640px)
+- `sm:landscape:` for desktop landscape
+
+Example: `className="h-8 landscape:h-3 sm:h-20 sm:landscape:h-20"`
+
+**Mobile-Specific Optimizations:**
+- SplashScreen logo reduced significantly on mobile (w-14 portrait, w-12 landscape)
+- TerminalPanel header elements reduced by 50% in mobile landscape
+- All interactive elements scaled appropriately for touch
+- Text selection disabled globally with `select-none` class
+
+### Orientation Lock Pattern
+
+Components enforce orientation constraints using JavaScript (CSS media queries are unreliable):
+
+```typescript
+const [isLandscape, setIsLandscape] = useState(false);
+
+useEffect(() => {
+  const checkOrientation = () => {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const isLandscapeNow = width > height && width < 1024;
+    setIsLandscape(isLandscapeNow);
+  };
+
+  checkOrientation();
+  window.addEventListener('resize', checkOrientation);
+  window.addEventListener('orientationchange', checkOrientation);
+  const timer = setTimeout(checkOrientation, 100);
+
+  return () => {
+    window.removeEventListener('resize', checkOrientation);
+    window.removeEventListener('orientationchange', checkOrientation);
+    clearTimeout(timer);
+  };
+}, []);
+
+if (isLandscape) {
+  return (
+    <div className="fixed inset-0 bg-gray-900 z-[9999] flex items-center justify-center p-4 select-none">
+      {/* Rotation overlay UI */}
+    </div>
+  );
+}
+```
+
+**Key Points:**
+- Threshold is 1024px (not 640px) - iPhone 14 Pro Max is 932px wide
+- Must use both `resize` and `orientationchange` events
+- Add 100ms timeout for Safari compatibility
+- Use z-[9999] to ensure overlay is always on top
+
 ### Connection Status Display
 
 All panels show connection status with consistent visual language:
@@ -237,17 +303,20 @@ SettingsPanel is a full-screen modal overlay that appears over any view:
 
 ## Critical Implementation Notes
 
-### DO NOT modify TerminalPanel.tsx
+### Fullscreen API Integration
 
-TerminalPanel has been fully implemented and tested. It includes:
-- Logo in top bar (h-16)
-- Back arrow and settings gear icons
-- Bluetooth status with real-time updates
-- Macro buttons with customizable commands
-- Log display with color-coded message types
-- No bottom logo (removed to avoid text overlap)
+DeviceSelection automatically enters fullscreen mode on mount:
+```typescript
+useEffect(() => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(err => {
+      console.error('Error attempting to enable fullscreen:', err);
+    });
+  }
+}, []);
+```
 
-When working on other views, avoid touching TerminalPanel.tsx.
+All panels include GitHub and Fullscreen toggle buttons in the top bar.
 
 ### Vibration Feedback
 
@@ -289,18 +358,20 @@ useEffect(() => {
 ```
 src/
 ├── components/          # React UI components
-│   ├── SplashScreen.tsx          # Initial 2-second loading screen
-│   ├── DeviceSelection.tsx       # Main menu with device type cards (Terminal/RC/Smart Home)
-│   ├── ControlPanel.tsx          # RC car gamepad interface
-│   ├── TerminalPanel.tsx         # Serial terminal with macro buttons (DO NOT MODIFY)
+│   ├── SplashScreen.tsx          # Initial 2-second loading screen (mobile-optimized)
+│   ├── DeviceSelection.tsx       # Main menu with device type cards (auto-fullscreen)
+│   ├── ControlPanel.tsx          # RC car gamepad interface (landscape only)
+│   ├── JoystickPanel.tsx         # PS4-style dual joystick interface (landscape only)
+│   ├── TerminalPanel.tsx         # Serial terminal with macro buttons (portrait only)
 │   ├── SmartHomePanel.tsx        # Room selection screen (up to 6 rooms)
 │   ├── SmartHomeRoomControl.tsx  # Room device/sensor/AC controls (dynamic labels)
 │   ├── ConnectionPanel.tsx       # Legacy connection UI
 │   ├── DataPanel.tsx             # Legacy terminal UI
 │   └── SettingsPanel.tsx         # Modal settings overlay (mode-aware)
 ├── services/           # Business logic singletons with localStorage
-│   ├── bluetoothService.ts      # Core BLE communication (HM-10 UART)
-│   ├── buttonSettings.ts        # Control panel button configs
+│   ├── bluetoothService.ts      # Core BLE communication (UART over BLE)
+│   ├── controlPanelSettings.ts  # Control panel button configs (gamepad mode)
+│   ├── buttonSettings.ts        # Legacy button configs (compatibility)
 │   ├── macroSettings.ts         # Terminal macro button commands
 │   ├── smartHomeSettings.ts     # Smart home device/sensor/AC configs
 │   ├── roomSettings.ts          # Smart home room management
@@ -315,11 +386,13 @@ src/
 2. **Not handling all three connection states** - Always handle 'disconnected', 'connecting', 'connected'
 3. **Missing vibration feedback** - Users expect haptic response on all interactions
 4. **Hardcoded strings** - Always use localization.t() for user-facing text
-5. **Modifying TerminalPanel** - This component is complete and should not be changed
-6. **Hardcoded device/sensor labels** - Use `getDeviceConfig(id)?.label` instead of hardcoded strings in SmartHomeRoomControl
-7. **Invalid smart home commands** - Commands must be single alphanumeric characters, validated with regex
-8. **Missing polling intervals** - Settings changes require polling (1000ms) to reflect in UI
-9. **Exceeding room limit** - Smart home supports maximum 6 rooms, enforce in UI
+5. **Using CSS for orientation locking** - CSS `landscape:` and `portrait:` media queries are unreliable; use JavaScript window.innerWidth/innerHeight detection instead
+6. **Wrong orientation threshold** - Use 1024px, not 640px (iPhone 14 Pro Max is 932px wide)
+7. **Hardcoded device/sensor labels** - Use `getDeviceConfig(id)?.label` instead of hardcoded strings in SmartHomeRoomControl
+8. **Invalid smart home commands** - Commands must be single alphanumeric characters, validated with regex
+9. **Missing polling intervals** - Settings changes require polling (1000ms) to reflect in UI
+10. **Exceeding room limit** - Smart home supports maximum 6 rooms, enforce in UI
+11. **Forgetting text selection disable** - Add `select-none` class to prevent copy/paste on mobile
 
 ## Browser Compatibility
 
