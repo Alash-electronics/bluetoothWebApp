@@ -30,6 +30,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   const [macros, setMacros] = useState<MacroConfig[]>([]);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const [isLandscape, setIsLandscape] = useState(false);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   // Отслеживание ориентации
   useEffect(() => {
@@ -266,31 +267,33 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
               </svg>
             </button>
 
-            {/* Fullscreen */}
-            <button
-              onClick={() => {
-                appSettings.vibrate(30);
-                if (!document.fullscreenElement) {
-                  document.documentElement.requestFullscreen().catch(err => {
-                    console.error('Error attempting to enable fullscreen:', err);
-                  });
-                } else {
-                  document.exitFullscreen();
-                }
-              }}
-              className="text-white hover:bg-blue-700 p-1 landscape:p-0 sm:p-2 sm:landscape:p-2 rounded transition"
-              title={document.fullscreenElement ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
-            >
-              {document.fullscreenElement ? (
-                <svg className="w-4 h-4 landscape:w-2 landscape:h-2 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4 landscape:w-2 landscape:h-2 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                </svg>
-              )}
-            </button>
+            {/* Fullscreen - скрыт на iOS */}
+            {!isIOS && (
+              <button
+                onClick={() => {
+                  appSettings.vibrate(30);
+                  if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                      console.error('Error attempting to enable fullscreen:', err);
+                    });
+                  } else {
+                    document.exitFullscreen();
+                  }
+                }}
+                className="text-white hover:bg-blue-700 p-1 landscape:p-0 sm:p-2 sm:landscape:p-2 rounded transition"
+                title={document.fullscreenElement ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
+              >
+                {document.fullscreenElement ? (
+                  <svg className="w-4 h-4 landscape:w-2 landscape:h-2 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 landscape:w-2 landscape:h-2 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
+                )}
+              </button>
+            )}
 
             {/* Очистить лог */}
             <button

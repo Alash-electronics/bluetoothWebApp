@@ -15,6 +15,7 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(bluetoothService.getConnectionStatus());
   const [_isConnecting, setIsConnecting] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   useFullscreen();
 
   useEffect(() => {
@@ -350,22 +351,24 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
             </svg>
           </button>
 
-          {/* Fullscreen */}
-          <button
-            onClick={toggleFullscreen}
-            className="w-9 h-9 landscape:w-6 landscape:h-6 sm:w-12 sm:h-12 sm:landscape:w-12 sm:landscape:h-12 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition flex-shrink-0"
-            title={isFullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
-          >
-            {isFullscreen ? (
-              <svg className="w-5 h-5 landscape:w-3 landscape:h-3 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 landscape:w-3 landscape:h-3 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-              </svg>
-            )}
-          </button>
+          {/* Fullscreen - скрыт на iOS */}
+          {!isIOS && (
+            <button
+              onClick={toggleFullscreen}
+              className="w-9 h-9 landscape:w-6 landscape:h-6 sm:w-12 sm:h-12 sm:landscape:w-12 sm:landscape:h-12 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition flex-shrink-0"
+              title={isFullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
+            >
+              {isFullscreen ? (
+                <svg className="w-5 h-5 landscape:w-3 landscape:h-3 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 landscape:w-3 landscape:h-3 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+              )}
+            </button>
+          )}
 
           {/* Вибрация */}
           <button
