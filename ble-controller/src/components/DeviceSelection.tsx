@@ -59,33 +59,47 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
   };
 
   const toggleFullscreen = () => {
-    appSettings.vibrate(30);
+    try {
+      appSettings.vibrate(30);
 
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error('Error attempting to enable fullscreen:', err);
-      });
-    } else {
-      document.exitFullscreen();
+      if (document?.documentElement?.requestFullscreen && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error('Error attempting to enable fullscreen:', err);
+        });
+      } else if (document?.exitFullscreen) {
+        document.exitFullscreen().catch(err => {
+          console.error('Error attempting to exit fullscreen:', err);
+        });
+      }
+    } catch (error) {
+      console.error('toggleFullscreen error:', error);
     }
   };
 
   // Отслеживание состояния fullscreen
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
+    try {
+      const handleFullscreenChange = () => {
+        setIsFullscreen(!!document.fullscreenElement);
+      };
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+      return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    } catch (error) {
+      console.error('Fullscreen change listener error:', error);
+    }
   }, []);
 
   // Автоматический вход в fullscreen при монтировании
   useEffect(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error('Error attempting to enable fullscreen:', err);
-      });
+    try {
+      if (document?.documentElement?.requestFullscreen && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error('Error attempting to enable fullscreen:', err);
+        });
+      }
+    } catch (error) {
+      console.error('Auto fullscreen error:', error);
     }
   }, []);
 
