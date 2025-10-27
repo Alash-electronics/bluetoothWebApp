@@ -3,12 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+
+    <!-- Viewport -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Theme Colors -->
+    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="msapplication-TileColor" content="#0ea5e9" />
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
+
+    <!-- iOS Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="BLE Controller" />
+
+    <!-- Android -->
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#9333ea" />
-    <title>hm10-controller</title>
+
+    <!-- SEO -->
+    <meta name="description" content="Universal Bluetooth controller for Arduino and embedded devices. Supports HC-06, HC-05, HM-10, ESP32 and other BLE/Bluetooth modules." />
+    <meta name="keywords" content="bluetooth, ble, arduino, hm-10, hc-05, hc-06, esp32, iot, controller" />
+    <meta name="author" content="Alash Electronics" />
+
+    <title>BLE Controller - Bluetooth Device Control</title>
+
     <style>
       /* Глобальные стили убраны - применяются только в JoystickPanel */
       * {
@@ -19,5 +45,20 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/bluetoothWebApp/sw.js')
+            .then((registration) => {
+              console.log('SW registered:', registration);
+            })
+            .catch((error) => {
+              console.log('SW registration failed:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
