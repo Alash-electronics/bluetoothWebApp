@@ -6,10 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BLE Controller is a React web application for controlling Bluetooth Low Energy modules via the Web Bluetooth API. The app features multiple UI modes (Terminal, RC Car Control, Joystick, Smart Home) with real-time Bluetooth communication, multi-language support (Russian, English, Kazakh), and persistent settings storage.
 
+**Important:** The main application code is in the `ble-controller/` subdirectory. Always run commands from within this directory.
+
 ## Development Commands
 
 ```bash
-# Start development server (http://localhost:5173/)
+# Navigate to project directory first
+cd ble-controller
+
+# Start development server with HTTPS (required for Web Bluetooth API)
 npm run dev
 
 # Build for production (includes TypeScript compilation)
@@ -20,7 +25,12 @@ npm run lint
 
 # Preview production build locally
 npm run preview
+
+# Deploy to GitHub Pages
+npm run deploy
 ```
+
+**Note:** The dev server runs with HTTPS enabled via `@vitejs/plugin-basic-ssl` plugin (required for Web Bluetooth API). Access at `https://localhost:5173/` and accept the self-signed certificate warning.
 
 ## Tech Stack
 
@@ -305,18 +315,22 @@ SettingsPanel is a full-screen modal overlay that appears over any view:
 
 ### Fullscreen API Integration
 
-DeviceSelection automatically enters fullscreen mode on mount:
+The `useFullscreen` hook (`src/hooks/useFullscreen.ts`) provides fullscreen functionality:
+
 ```typescript
-useEffect(() => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(err => {
-      console.error('Error attempting to enable fullscreen:', err);
-    });
-  }
-}, []);
+const { toggleFullscreen } = useFullscreen();
+
+// Hook automatically requests fullscreen on mobile devices after 500ms delay
+// Use toggleFullscreen() to manually enter/exit fullscreen mode
 ```
 
-All panels include GitHub and Fullscreen toggle buttons in the top bar.
+**Hook Features:**
+- Auto-detects mobile devices via user agent
+- Auto-requests fullscreen on mobile after 500ms (allows user interaction first)
+- Provides `toggleFullscreen()` function for manual control
+- Handles errors gracefully
+
+DeviceSelection automatically enters fullscreen mode on mount. All panels include GitHub and Fullscreen toggle buttons in the top bar.
 
 ### Vibration Feedback
 
@@ -356,28 +370,39 @@ useEffect(() => {
 ## File Organization
 
 ```
-src/
-├── components/          # React UI components
-│   ├── SplashScreen.tsx          # Initial 2-second loading screen (mobile-optimized)
-│   ├── DeviceSelection.tsx       # Main menu with device type cards (auto-fullscreen)
-│   ├── ControlPanel.tsx          # RC car gamepad interface (landscape only)
-│   ├── JoystickPanel.tsx         # PS4-style dual joystick interface (landscape only)
-│   ├── TerminalPanel.tsx         # Serial terminal with macro buttons (portrait only)
-│   ├── SmartHomePanel.tsx        # Room selection screen (up to 6 rooms)
-│   ├── SmartHomeRoomControl.tsx  # Room device/sensor/AC controls (dynamic labels)
-│   ├── ConnectionPanel.tsx       # Legacy connection UI
-│   ├── DataPanel.tsx             # Legacy terminal UI
-│   └── SettingsPanel.tsx         # Modal settings overlay (mode-aware)
-├── services/           # Business logic singletons with localStorage
-│   ├── bluetoothService.ts      # Core BLE communication (UART over BLE)
-│   ├── controlPanelSettings.ts  # Control panel button configs (gamepad mode)
-│   ├── buttonSettings.ts        # Legacy button configs (compatibility)
-│   ├── macroSettings.ts         # Terminal macro button commands
-│   ├── smartHomeSettings.ts     # Smart home device/sensor/AC configs
-│   ├── roomSettings.ts          # Smart home room management
-│   ├── appSettings.ts           # App-wide settings (vibration, theme)
-│   └── localization.ts          # i18n with observer pattern (ru/en/kk)
-└── App.tsx             # Root component with view routing (ViewMode state)
+ble-controller/
+├── src/
+│   ├── components/          # React UI components
+│   │   ├── SplashScreen.tsx          # Initial 2-second loading screen (mobile-optimized)
+│   │   ├── DeviceSelection.tsx       # Main menu with device type cards (auto-fullscreen)
+│   │   ├── ControlPanel.tsx          # RC car gamepad interface (landscape only)
+│   │   ├── JoystickPanel.tsx         # PS4-style dual joystick interface (landscape only)
+│   │   ├── TerminalPanel.tsx         # Serial terminal with macro buttons (portrait only)
+│   │   ├── SmartHomePanel.tsx        # Room selection screen (up to 6 rooms)
+│   │   ├── SmartHomeRoomControl.tsx  # Room device/sensor/AC controls (dynamic labels)
+│   │   ├── ConnectionPanel.tsx       # Legacy connection UI
+│   │   ├── DataPanel.tsx             # Legacy terminal UI
+│   │   └── SettingsPanel.tsx         # Modal settings overlay (mode-aware)
+│   ├── services/           # Business logic singletons with localStorage
+│   │   ├── bluetoothService.ts      # Core BLE communication (UART over BLE)
+│   │   ├── controlPanelSettings.ts  # Control panel button configs (gamepad mode)
+│   │   ├── buttonSettings.ts        # Legacy button configs (compatibility)
+│   │   ├── macroSettings.ts         # Terminal macro button commands
+│   │   ├── smartHomeSettings.ts     # Smart home device/sensor/AC configs
+│   │   ├── roomSettings.ts          # Smart home room management
+│   │   ├── appSettings.ts           # App-wide settings (vibration, theme)
+│   │   └── localization.ts          # i18n with observer pattern (ru/en/kk)
+│   ├── hooks/              # React custom hooks
+│   │   └── useFullscreen.ts         # Fullscreen API hook with mobile detection
+│   └── App.tsx             # Root component with view routing (ViewMode state)
+├── arduino-examples/       # Arduino sketch examples for HM-10 module
+│   ├── terminal_basic/     # Basic echo example
+│   ├── rc_car_control/     # RC car control example
+│   ├── smart_home_basic/   # Smart home control example
+│   └── README.md           # Hardware setup and wiring instructions
+├── vite.config.ts          # Vite config with basicSsl plugin and base path
+├── package.json            # Dependencies and scripts (includes gh-pages deploy)
+└── CLAUDE.md               # This file
 ```
 
 ## Common Pitfalls
@@ -393,6 +418,40 @@ src/
 9. **Missing polling intervals** - Settings changes require polling (1000ms) to reflect in UI
 10. **Exceeding room limit** - Smart home supports maximum 6 rooms, enforce in UI
 11. **Forgetting text selection disable** - Add `select-none` class to prevent copy/paste on mobile
+
+## Deployment
+
+The project deploys to GitHub Pages via the `gh-pages` package:
+
+```bash
+npm run deploy
+```
+
+This command:
+1. Runs `npm run build` (via predeploy script)
+2. Deploys the `dist/` folder to the `gh-pages` branch
+3. Makes the app available at: **https://alash-electronics.github.io/**
+
+**Configuration:**
+- Base path is set to `/` in `vite.config.ts` (root deployment)
+- Update `base` in `vite.config.ts` if deploying to a subdirectory (e.g., `/my-app/`)
+
+## Arduino Examples
+
+The `arduino-examples/` directory contains reference implementations for HM-10 modules:
+
+- **terminal_basic/** - Echo example for testing terminal mode
+- **rc_car_control/** - Motor control example for RC car mode
+- **smart_home_basic/** - Relay/LED control example for smart home mode
+- **README.md** - Hardware wiring diagrams and setup instructions
+
+**Key Details:**
+- Examples use SoftwareSerial (pins 10/11 by default)
+- HM-10 RXD requires 3.3V input (use voltage divider on 5V Arduinos)
+- Default baud rate: 9600
+- Commands are single characters matching the web app's protocol
+
+These examples are useful references when debugging communication issues or implementing new device features.
 
 ## Browser Compatibility
 
