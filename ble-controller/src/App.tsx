@@ -7,11 +7,15 @@ import { SmartHomePanel } from './components/SmartHomePanel';
 import { SmartHomeRoomControl } from './components/SmartHomeRoomControl';
 import { TerminalPanel } from './components/TerminalPanel';
 import { JoystickPanel } from './components/JoystickPanel';
+import { UnsupportedBrowser } from './components/UnsupportedBrowser';
 import { type ConnectionStatus } from './services/bluetoothService';
 
 type ViewMode = 'selection' | 'control' | 'terminal' | 'smartHome' | 'smartHomeRoom' | 'joystick';
 
 function App() {
+  // Проверка поддержки Web Bluetooth API
+  const isBluetoothSupported = typeof navigator !== 'undefined' && 'bluetooth' in navigator;
+
   const [showSplash, setShowSplash] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [deviceName, setDeviceName] = useState<string>('');
@@ -25,6 +29,11 @@ function App() {
     // Не переключаем автоматически на control - пользователь выберет сам
     if (status === 'disconnected') setViewMode('selection');
   };
+
+  // Если браузер не поддерживает Web Bluetooth - показываем сообщение
+  if (!isBluetoothSupported) {
+    return <UnsupportedBrowser />;
+  }
 
   // Показываем splash screen при запуске
   if (showSplash) {

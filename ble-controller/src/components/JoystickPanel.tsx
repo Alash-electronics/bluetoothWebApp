@@ -962,7 +962,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
 
       {/* Лого внизу слева - скрыт на мобильных */}
       <div className="fixed bottom-2 left-2 hidden sm:block">
-        <img src="/logo.png" alt="Logo" className="h-12 sm:h-16 opacity-30" />
+        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="h-12 sm:h-16 opacity-30" />
       </div>
     </div>
   );

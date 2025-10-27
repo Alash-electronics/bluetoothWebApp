@@ -437,7 +437,7 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
 
       {/* Футер */}
       <div className="pb-2 landscape:pb-1 sm:pb-4 px-2 sm:px-4 flex items-center justify-between landscape:hidden sm:flex">
-        <img src="/logo.png" alt="Logo" className="h-12 sm:h-20 opacity-70" />
+        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="h-12 sm:h-20 opacity-70" />
         <p className="text-white/50 text-xs sm:text-sm">{localization.t('version')}</p>
       </div>
     </div>

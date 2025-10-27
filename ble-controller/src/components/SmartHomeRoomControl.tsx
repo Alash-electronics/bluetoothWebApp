@@ -601,7 +601,7 @@ export const SmartHomeRoomControl: React.FC<SmartHomeRoomControlProps> = ({
 
       {/* Лого внизу слева */}
       <div className="fixed bottom-20 left-4">
-        <img src="/logo.png" alt="Logo" className="h-20 opacity-70" />
+        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="h-20 opacity-70" />
       </div>
     </div>
   );

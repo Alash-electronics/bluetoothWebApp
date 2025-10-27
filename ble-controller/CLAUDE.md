@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-BLE Controller is a React web application for controlling Bluetooth Low Energy modules via the Web Bluetooth API. The app features multiple UI modes (Terminal, RC Car Control, Joystick, Smart Home) with real-time Bluetooth communication, multi-language support (Russian, English, Kazakh), and persistent settings storage.
+BLE Controller is a universal React web application for controlling Bluetooth modules via the Web Bluetooth API. Supports HC-06, HC-05, HM-10, ESP32 and other BLE/Classic Bluetooth modules. The app features multiple UI modes (Terminal, RC Car Control, Joystick, Smart Home) with real-time Bluetooth communication, multi-language support (Russian, English, Kazakh), and persistent settings storage.
 
 **Important:** The main application code is in the `ble-controller/` subdirectory. Always run commands from within this directory.
 

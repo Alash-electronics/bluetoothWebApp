@@ -211,7 +211,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
 
           {/* Заголовок с логотипом */}
           <div className="flex-1 flex items-center justify-center gap-1.5 landscape:gap-0.5 sm:gap-3 sm:landscape:gap-3">
-            <img src="/logo.png" alt="Logo" className="h-8 landscape:h-3 sm:h-20 sm:landscape:h-20 opacity-90" />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="h-8 landscape:h-3 sm:h-20 sm:landscape:h-20 opacity-90" />
             <h1 className="text-white text-sm landscape:text-[8px] sm:text-2xl sm:landscape:text-2xl font-semibold">Terminal</h1>
           </div>
 

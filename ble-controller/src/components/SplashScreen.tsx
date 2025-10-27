@@ -31,7 +31,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
       <div className="flex flex-col items-center gap-4 landscape:gap-0.5 sm:gap-8 sm:landscape:gap-8">
         <div className="bg-white/10 backdrop-blur-sm rounded-xl landscape:rounded-sm sm:rounded-3xl sm:landscape:rounded-3xl p-3 landscape:p-1 sm:p-8 sm:landscape:p-8 shadow-2xl">
           <img
-            src="/logo.png"
+            src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Logo"
             className="w-14 max-w-[56px] landscape:w-12 landscape:max-w-[48px] sm:w-64 sm:max-w-none sm:landscape:w-64 h-auto object-contain"
           />
