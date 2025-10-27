@@ -21,6 +21,31 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
   const [gamepadButtonStates, setGamepadButtonStates] = useState<boolean[]>(new Array(20).fill(false));
   const [gamepadConnected, setGamepadConnected] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
+
+  // Отслеживание ориентации - блокировка вертикального режима
+  useEffect(() => {
+    const checkOrientation = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const isPortraitNow = height > width && height < 1024;
+      console.log('ControlPanel orientation:', { width, height, isPortraitNow });
+      setIsPortrait(isPortraitNow);
+    };
+
+    checkOrientation();
+
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+
+    const timer = setTimeout(checkOrientation, 100);
+
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+      clearTimeout(timer);
+    };
+  }, []);
 
   // Вспомогательная функция для получения конфига кнопки
   const getButtonConfig = useCallback((id: string): ControlButtonConfig | undefined => {
@@ -294,14 +319,28 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  if (isPortrait) {
+    return (
+      <div className="fixed inset-0 bg-gray-900 z-[9999] flex items-center justify-center p-4 select-none">
+        <div className="text-center">
+          <svg className="w-20 h-20 text-cyan-400 mx-auto mb-6 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4z M12 16h.01" />
+          </svg>
+          <h2 className="text-white text-2xl font-bold mb-3">Поверните устройство</h2>
+          <p className="text-gray-400 text-base">Control Panel доступен только в горизонтальном режиме</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-300 to-blue-400 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-300 to-blue-400 flex flex-col overflow-hidden select-none">
       {/* Верхний бар */}
-      <div className="flex items-center justify-between p-2 sm:p-4">
+      <div className="relative flex items-center justify-between p-2 sm:p-4">
         {/* Кнопка назад */}
         <button
           onClick={handleBackClick}
-          className="w-12 h-12 bg-transparent hover:bg-white/10 rounded-lg flex items-center justify-center transition"
+          className="w-12 h-12 bg-transparent hover:bg-white/10 rounded-lg flex items-center justify-center transition z-10"
         >
           <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -309,10 +348,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
         </button>
 
         {/* Статус подключения */}
-        <div className="flex-1 flex justify-center">
+        <div className="absolute left-1/2 -translate-x-1/2">
           <button
             onClick={handleBluetoothClick}
-            className="bg-black/80 hover:bg-black/90 rounded-full px-6 py-3 flex items-center gap-3 min-w-[250px] transition"
+            className="bg-black/80 hover:bg-black/90 rounded-full px-4 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-3 min-w-[200px] sm:min-w-[250px] transition"
             title={
               connectionStatus === 'connected'
                 ? 'Подключен - нажмите для отключения'
@@ -322,23 +361,23 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
             }
           >
             <svg
-              className={`w-8 h-8 text-cyan-400 ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`}
+              className={`w-6 sm:w-8 h-6 sm:h-8 text-cyan-400 ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`}
               fill="currentColor"
               viewBox="0 0 24 24"
             >
               <path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/>
             </svg>
             <div className="flex-1">
-              <div className="text-white font-semibold text-sm">{deviceName || 'BLE'}</div>
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
+              <div className="text-white font-semibold text-xs sm:text-sm">{deviceName || 'BLE'}</div>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className={`w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full ${
                   connectionStatus === 'connected'
                     ? 'bg-green-400'
                     : connectionStatus === 'connecting'
                     ? 'bg-yellow-400 animate-pulse'
                     : 'bg-red-400'
                 }`}></div>
-                <span className={`text-xs ${
+                <span className={`text-[10px] sm:text-xs ${
                   connectionStatus === 'connected'
                     ? 'text-green-400'
                     : connectionStatus === 'connecting'
@@ -354,7 +393,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
               </div>
             </div>
             {connectionStatus === 'connected' && (
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 sm:w-6 h-5 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             )}
@@ -362,12 +401,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
         </div>
 
         {/* Кнопки управления */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 z-10">
           {/* Кнопка GitHub */}
           <button
             onClick={() => {
               appSettings.vibrate(30);
-              window.open('https://github.com/yourusername/hm10-controller/tree/main/arduino-examples', '_blank');
+              window.open('https://github.com/Alash-electronics/bluetoohWebApp/tree/main/arduino-examples', '_blank');
             }}
             className="w-12 h-12 bg-transparent hover:bg-white/10 rounded-lg flex items-center justify-center transition"
             title="Arduino примеры на GitHub"
@@ -408,8 +447,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
       </div>
 
       {/* Основная область с кнопками */}
-      <div className="flex-1 flex items-center justify-center px-8 pb-0 sm:pb-20" style={{ marginBottom: '-70px' }}>
-        <div className="w-full max-w-6xl grid grid-cols-3 gap-8 items-center">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-8 pb-0 sm:pb-20" style={{ marginBottom: '-70px' }}>
+        <div className="w-full max-w-6xl grid grid-cols-3 gap-4 sm:gap-8 items-center justify-items-center">
 
           {/* Левая часть - Цветные кнопки WASD */}
           <div className="flex justify-center">
