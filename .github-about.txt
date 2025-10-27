@@ -11,7 +11,7 @@ Universal web-based Bluetooth controller for Arduino and embedded devices. Suppo
 
 Website (Homepage):
 -------------------
-https://alash-electronics.github.io/
+https://alash-electronics.github.io/bluetoothWebApp/
 
 Topics (теги для GitHub):
 -------------------------
@@ -45,7 +45,7 @@ Universal Bluetooth controller for Arduino & embedded devices. Supports HC-06, H
 1. Откройте страницу репозитория на GitHub
 2. Нажмите на шестеренку ⚙️ рядом с "About" (справа)
 3. Вставьте краткое описание в поле "Description"
-4. Добавьте Website: https://alash-electronics.github.io/
+4. Добавьте Website: https://alash-electronics.github.io/bluetoothWebApp/
 5. Добавьте Topics (теги) из списка выше
 6. Поставьте галочки:
    - ☑ Releases

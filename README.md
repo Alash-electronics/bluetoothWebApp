@@ -24,7 +24,7 @@ A universal web-based Bluetooth controller application for Arduino and embedded 
 
 ## Live Demo
 
-Visit the live application: **https://alash-electronics.github.io/**
+Visit the live application: **https://alash-electronics.github.io/bluetoothWebApp/**
 
 ## Browser Compatibility
 
@@ -66,7 +66,7 @@ The Web Bluetooth API is required for this application to function:
 
 ### For End Users
 
-Simply visit the [live demo](https://alash-electronics.github.io/) on a compatible browser and click "Connect" to pair with your BLE device.
+Simply visit the [live demo](https://alash-electronics.github.io/bluetoothWebApp/) on a compatible browser and click "Connect" to pair with your BLE device.
 
 ### For Developers
 

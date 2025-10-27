@@ -430,11 +430,11 @@ npm run deploy
 This command:
 1. Runs `npm run build` (via predeploy script)
 2. Deploys the `dist/` folder to the `gh-pages` branch
-3. Makes the app available at: **https://alash-electronics.github.io/**
+3. Makes the app available at: **https://alash-electronics.github.io/bluetoothWebApp/**
 
 **Configuration:**
-- Base path is set to `/` in `vite.config.ts` (root deployment)
-- Update `base` in `vite.config.ts` if deploying to a subdirectory (e.g., `/my-app/`)
+- Base path is set to `/bluetoothWebApp/` in `vite.config.ts`
+- Update `base` in `vite.config.ts` if deploying to a different subdirectory
 
 ## Arduino Examples
 

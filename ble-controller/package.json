@@ -10,7 +10,7 @@
     "type": "git",
     "url": "https://github.com/yourusername/bluetoothWebApp.git"
   },
-  "homepage": "https://alash-electronics.github.io/",
+  "homepage": "https://alash-electronics.github.io/bluetoothWebApp/",
   "keywords": [
     "bluetooth",
     "ble",

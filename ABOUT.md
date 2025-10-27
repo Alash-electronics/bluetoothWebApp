@@ -88,7 +88,7 @@ We welcome contributions from developers, designers, and hardware enthusiasts. W
 
 ## Getting Started
 
-Visit our [live demo](https://alash-electronics.github.io/) or clone the repository to start developing:
+Visit our [live demo](https://alash-electronics.github.io/bluetoothWebApp/) or clone the repository to start developing:
 
 ```bash
 git clone https://github.com/yourusername/bluetoothWebApp.git
