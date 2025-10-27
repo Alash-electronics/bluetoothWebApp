@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { localization } from '../services/localization';
 import { appSettings } from '../services/appSettings';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
+import { roomSettings, type RoomConfig } from '../services/roomSettings';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 interface SmartHomePanelProps {
   connectionStatus: ConnectionStatus;
@@ -11,15 +13,6 @@ interface SmartHomePanelProps {
   onBack: () => void;
 }
 
-interface Room {
-  id: string;
-  name: string;
-  icon: string;
-  deviceCount: number;
-  bgColor: string;
-  enabled: boolean;
-}
-
 export const SmartHomePanel: React.FC<SmartHomePanelProps> = ({
   connectionStatus: initialConnectionStatus,
   deviceName,
@@ -27,14 +20,14 @@ export const SmartHomePanel: React.FC<SmartHomePanelProps> = ({
   onSelectRoom,
   onBack
 }) => {
+  useFullscreen();
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(initialConnectionStatus);
   const isConnected = connectionStatus === 'connected';
   const [, forceUpdate] = useState({});
-  const [rooms, setRooms] = useState<Room[]>([
-    { id: 'living', name: 'Living Room', icon: '🛋️', deviceCount: 7, bgColor: 'bg-pink-100', enabled: true },
-    { id: 'bedroom', name: 'Bed Room', icon: '🛏️', deviceCount: 5, bgColor: 'bg-blue-100', enabled: false },
-    { id: 'bathroom', name: 'Bath Room', icon: '🛁', deviceCount: 4, bgColor: 'bg-amber-100', enabled: false },
-  ]);
+  const [rooms, setRooms] = useState<RoomConfig[]>(roomSettings.getRooms());
+  const [showAddRoom, setShowAddRoom] = useState(false);
+  const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomIcon, setNewRoomIcon] = useState('🏠');
 
   // Обновляем локальный статус при изменении prop
   useEffect(() => {
@@ -49,14 +42,45 @@ export const SmartHomePanel: React.FC<SmartHomePanelProps> = ({
       setConnectionStatus(status);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
-  const handleRoomToggle = (roomId: string) => {
+  const handleAddRoom = () => {
     appSettings.vibrate(30);
-    setRooms(prev => prev.map(room =>
-      room.id === roomId ? { ...room, enabled: !room.enabled } : room
-    ));
+    if (rooms.length >= 6) {
+      alert('Максимум 6 комнат');
+      return;
+    }
+    setShowAddRoom(true);
+  };
+
+  const handleSaveNewRoom = () => {
+    appSettings.vibrate(30);
+    if (!newRoomName.trim()) {
+      alert('Введите название комнаты');
+      return;
+    }
+
+    const newRoom: RoomConfig = {
+      id: `room${Date.now()}`,
+      name: newRoomName.trim(),
+      icon: newRoomIcon,
+    };
+
+    roomSettings.addRoom(newRoom);
+    setRooms(roomSettings.getRooms());
+    setShowAddRoom(false);
+    setNewRoomName('');
+    setNewRoomIcon('🏠');
+  };
+
+  const handleCancelAddRoom = () => {
+    appSettings.vibrate(30);
+    setShowAddRoom(false);
+    setNewRoomName('');
+    setNewRoomIcon('🏠');
   };
 
   const handleRoomClick = (roomId: string) => {
@@ -171,62 +195,53 @@ export const SmartHomePanel: React.FC<SmartHomePanelProps> = ({
 
       {/* Основной контент */}
       <div className="flex-1 p-4 space-y-4 overflow-auto pb-20">
-        {/* Виджет погоды */}
-        <div className="bg-gradient-to-r from-gray-500 to-blue-500 rounded-3xl p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col items-center">
-              <div className="text-5xl mb-2">⛅</div>
-              <div className="text-sm">Cloudy</div>
-            </div>
-            <div className="h-16 w-px bg-white/30"></div>
-            <div className="flex-1 text-right">
-              <div className="text-sm opacity-80 mb-1">30 December 2024</div>
-              <div className="text-6xl font-bold">27°</div>
-            </div>
-          </div>
-        </div>
-
         {/* Ваши комнаты */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-gray-800">Your Rooms</h2>
-          <button className="bg-blue-100 text-blue-600 px-4 py-2 rounded-xl font-semibold hover:bg-blue-200 transition">
+          <button
+            onClick={handleAddRoom}
+            disabled={rooms.length >= 6}
+            className={`px-4 py-2 rounded-xl font-semibold transition ${
+              rooms.length >= 6
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+            }`}
+          >
             + Add
           </button>
         </div>
 
         {/* Список комнат */}
         <div className="space-y-3">
-          {rooms.map((room) => (
-            <button
-              key={room.id}
-              onClick={() => handleRoomClick(room.id)}
-              className={`w-full ${room.bgColor} rounded-2xl p-5 flex items-center gap-4 hover:opacity-90 transition`}
-            >
-              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm">
-                {room.icon}
-              </div>
-              <div className="flex-1 text-left">
-                <h3 className="text-lg font-bold text-gray-800">{room.name}</h3>
-                <div className="flex items-center gap-1 text-sm text-gray-600">
-                  <div className={`w-2 h-2 rounded-full ${room.enabled ? 'bg-red-500' : 'bg-blue-500'}`}></div>
-                  <span>{room.deviceCount} Devices</span>
-                </div>
-              </div>
+          {rooms.map((room, index) => {
+            const bgColors = [
+              'bg-gradient-to-br from-blue-100 to-blue-200',
+              'bg-gradient-to-br from-purple-100 to-purple-200',
+              'bg-gradient-to-br from-green-100 to-green-200',
+              'bg-gradient-to-br from-orange-100 to-orange-200',
+              'bg-gradient-to-br from-pink-100 to-pink-200',
+              'bg-gradient-to-br from-yellow-100 to-yellow-200',
+            ];
+            const bgColor = bgColors[index % bgColors.length];
+
+            return (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRoomToggle(room.id);
-                }}
-                className={`w-14 h-8 rounded-full transition-colors ${
-                  room.enabled ? 'bg-blue-500' : 'bg-gray-300'
-                } relative`}
+                key={room.id}
+                onClick={() => handleRoomClick(room.id)}
+                className={`w-full ${bgColor} rounded-2xl p-5 flex items-center gap-4 hover:opacity-90 transition shadow-sm`}
               >
-                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${
-                  room.enabled ? 'translate-x-7' : 'translate-x-1'
-                }`}></div>
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm">
+                  {room.icon}
+                </div>
+                <div className="flex-1 text-left">
+                  <h3 className="text-lg font-bold text-gray-800">{room.name}</h3>
+                </div>
+                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
               </button>
-            </button>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -255,8 +270,70 @@ export const SmartHomePanel: React.FC<SmartHomePanelProps> = ({
 
       {/* Лого внизу слева */}
       <div className="fixed bottom-20 left-4">
-        <img src="/logo.png" alt="Logo" className="h-12 opacity-70" />
+        <img src="/logo.png" alt="Logo" className="h-20 opacity-70" />
       </div>
+
+      {/* Диалог добавления комнаты */}
+      {showAddRoom && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Добавить комнату</h2>
+
+            {/* Название комнаты */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Название комнаты
+              </label>
+              <input
+                type="text"
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                placeholder="Введите название..."
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
+                maxLength={30}
+              />
+            </div>
+
+            {/* Иконка */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Выберите иконку
+              </label>
+              <div className="grid grid-cols-6 gap-2">
+                {['🏠', '🛋️', '🛏️', '🍳', '🚿', '🌳', '🎮', '💼', '🏃', '🎵', '📚', '🔧'].map((icon) => (
+                  <button
+                    key={icon}
+                    onClick={() => setNewRoomIcon(icon)}
+                    className={`w-12 h-12 text-2xl rounded-xl transition ${
+                      newRoomIcon === icon
+                        ? 'bg-blue-500 scale-110 shadow-lg'
+                        : 'bg-gray-100 hover:bg-gray-200'
+                    }`}
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Кнопки */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleCancelAddRoom}
+                className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleSaveNewRoom}
+                className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition"
+              >
+                Добавить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

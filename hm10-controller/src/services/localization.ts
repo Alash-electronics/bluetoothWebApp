@@ -10,6 +10,8 @@ interface Translations {
   rcCarDesc: string;
   smartHome: string;
   smartHomeDesc: string;
+  joystick: string;
+  joystickDesc: string;
   robot: string;
   robotDesc: string;
   customDevice: string;
@@ -59,6 +61,8 @@ const translations: Record<Language, Translations> = {
     rcCarDesc: 'управление машиной',
     smartHome: 'Умный Дом',
     smartHomeDesc: 'автоматизация дома',
+    joystick: 'Джойстик',
+    joystickDesc: 'управление джойстиком',
     robot: 'Робот',
     robotDesc: 'программируемый робот',
     customDevice: 'Пользовательское Устройство',
@@ -102,6 +106,8 @@ const translations: Record<Language, Translations> = {
     rcCarDesc: 'car control',
     smartHome: 'Smart Home',
     smartHomeDesc: 'home automation',
+    joystick: 'Joystick',
+    joystickDesc: 'joystick control',
     robot: 'Robot',
     robotDesc: 'programmable robot',
     customDevice: 'Custom Device',
@@ -145,6 +151,8 @@ const translations: Record<Language, Translations> = {
     rcCarDesc: 'машинаны басқару',
     smartHome: 'Ақылды Үй',
     smartHomeDesc: 'үйді автоматтандыру',
+    joystick: 'Джойстик',
+    joystickDesc: 'джойстикпен басқару',
     robot: 'Робот',
     robotDesc: 'бағдарламаланатын робот',
     customDevice: 'Пайдаланушы Құрылғысы',

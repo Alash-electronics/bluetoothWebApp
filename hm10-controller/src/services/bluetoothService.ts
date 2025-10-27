@@ -75,7 +75,6 @@ class BluetoothService {
 
       return this.device;
     } catch (error) {
-      console.error('Ошибка подключения:', error);
       this.connectionStatus = 'disconnected';
       this.onConnectionStatusCallback?.('disconnected');
       throw error;
@@ -104,7 +103,7 @@ class BluetoothService {
       const encoder = new TextEncoder();
       const dataBuffer = encoder.encode(data);
 
-      // Попробуем использовать writeValueWithoutResponse для HM-10
+      // Отправляем данные (новый формат всегда влезает в один пакет <= 20 байт)
       if (this.characteristic.properties.writeWithoutResponse) {
         await this.characteristic.writeValueWithoutResponse(dataBuffer);
       } else if (this.characteristic.properties.write) {
@@ -113,7 +112,7 @@ class BluetoothService {
         throw new Error('Характеристика не поддерживает запись');
       }
     } catch (error) {
-      console.error('Ошибка отправки данных:', error);
+      // Ошибка отправки данных - тихо игнорируем для производительности
       throw error;
     }
   }
@@ -132,7 +131,6 @@ class BluetoothService {
 
   // Обработка отключения
   private handleDisconnect(): void {
-    console.log('Устройство отключено');
     this.device = null;
     this.server = null;
     this.characteristic = null;

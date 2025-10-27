@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { localization } from '../services/localization';
 import { appSettings } from '../services/appSettings';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 interface DeviceSelectionProps {
   onDeviceSelected: () => void;
@@ -12,6 +13,8 @@ interface DeviceSelectionProps {
 export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelected, onConnectionChange, onSelectDeviceType }) => {
   const [, forceUpdate] = useState({});
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(bluetoothService.getConnectionStatus());
+  const [isConnecting, setIsConnecting] = useState(false);
+  useFullscreen();
 
   useEffect(() => {
     const unsubscribe = localization.subscribe(() => forceUpdate({}));
@@ -128,6 +131,29 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
         onDeviceSelected();
       }
     }
+
+    // Для Joystick - переходим к Joystick режиму
+    if (type === 'joystick') {
+      if (!bluetoothService.isConnected()) {
+        setIsConnecting(true);
+        try {
+          const device = await bluetoothService.connect();
+          onConnectionChange('connected', device.name);
+          appSettings.vibrate(100);
+          onSelectDeviceType?.('joystick');
+        } catch (error) {
+          console.error('Connection error:', error);
+          appSettings.vibrate([100, 50, 100]);
+          setIsConnecting(false);
+          return;
+        }
+        setIsConnecting(false);
+      } else {
+        // Если уже подключено, просто переходим к Joystick
+        onSelectDeviceType?.('joystick');
+      }
+      return;
+    }
   };
 
   const deviceTypes = [
@@ -170,6 +196,21 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
       locked: false
     },
     {
+      id: 'joystick',
+      icon: (
+        <svg className="w-20 h-20" viewBox="0 0 100 100" fill="currentColor">
+          <circle cx="50" cy="35" r="15"/>
+          <rect x="45" y="50" width="10" height="20" rx="2"/>
+          <path d="M30 70h40c5.5 0 10 4.5 10 10v5H20v-5c0-5.5 4.5-10 10-10z"/>
+          <circle cx="40" cy="78" r="3" fill="white" opacity="0.7"/>
+          <circle cx="60" cy="78" r="3" fill="white" opacity="0.7"/>
+        </svg>
+      ),
+      titleKey: 'joystick' as const,
+      descKey: 'joystickDesc' as const,
+      locked: false
+    },
+    {
       id: 'robot',
       icon: (
         <svg className="w-20 h-20" viewBox="0 0 100 100" fill="currentColor">
@@ -201,32 +242,32 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-300 to-blue-400 flex flex-col">
-      {/* Верхний бар */}
-      <div className="flex items-center justify-between p-4">
-        {/* Placeholder для баланса */}
-        <div className="w-12"></div>
+      {/* Верхний бар - компактный для мобилки */}
+      <div className="flex items-center justify-between px-2 py-2 sm:p-4 gap-1 sm:gap-2">
+        {/* Placeholder для баланса на десктопе */}
+        <div className="w-0 sm:w-12"></div>
 
         {/* Статус подключения */}
-        <div className="flex-1 flex justify-center">
+        <div className="flex-1 flex justify-center min-w-0">
           <button
             onClick={handleConnect}
             disabled={connectionStatus === 'connecting'}
-            className="bg-black/80 rounded-full px-6 py-3 flex items-center gap-3 min-w-[250px] hover:bg-black/90 transition disabled:opacity-50"
+            className="bg-black/80 rounded-full px-2 py-1.5 sm:px-6 sm:py-3 flex items-center gap-1.5 sm:gap-3 min-w-0 hover:bg-black/90 transition disabled:opacity-50"
           >
-            <svg className={`w-8 h-8 text-cyan-400 ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`} fill="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-6 h-6 sm:w-8 sm:h-8 text-cyan-400 flex-shrink-0 ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`} fill="currentColor" viewBox="0 0 24 24">
               <path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/>
             </svg>
-            <div className="flex-1 text-left">
-              <div className="text-white font-semibold text-sm flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
+            <div className="flex-1 text-left min-w-0">
+              <div className="text-white font-semibold text-xs sm:text-sm flex items-center gap-1 sm:gap-2">
+                <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0 ${
                   connectionStatus === 'connected'
                     ? 'bg-green-400'
                     : connectionStatus === 'connecting'
                     ? 'bg-yellow-400 animate-pulse'
                     : 'bg-red-400'
                 }`}></div>
-                <div className="flex flex-col">
-                  <span>
+                <div className="flex flex-col min-w-0">
+                  <span className="truncate">
                     {connectionStatus === 'connected'
                       ? localization.t('connected')
                       : connectionStatus === 'connecting'
@@ -234,32 +275,32 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
                       : localization.t('pressToConnect')}
                   </span>
                   {connectionStatus === 'connected' && (
-                    <span className="text-xs text-white/70 font-normal">
+                    <span className="text-[10px] sm:text-xs text-white/70 font-normal hidden sm:block">
                       {localization.t('clickToUnpair')}
                     </span>
                   )}
                 </div>
               </div>
             </div>
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-6 sm:h-6 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </button>
         </div>
 
         {/* Кнопки справа */}
-        <div className="flex gap-2">
+        <div className="flex gap-1 sm:gap-2">
           {/* Вибрация */}
           <button
             onClick={handleVibrationClick}
-            className="w-12 h-12 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition"
+            className="w-9 h-9 sm:w-12 sm:h-12 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition flex-shrink-0"
           >
             {appSettings.isVibrationEnabled() ? (
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
             ) : (
-              <svg className="w-6 h-6 text-white opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
               </svg>
             )}
@@ -268,9 +309,9 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
           {/* Язык */}
           <button
             onClick={handleLanguageClick}
-            className="h-12 px-4 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition"
+            className="h-9 px-2 sm:h-12 sm:px-4 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition"
           >
-            <span className="text-white font-semibold">{localization.getLanguageName()}</span>
+            <span className="text-white font-semibold text-xs sm:text-base">{localization.getLanguageName()}</span>
           </button>
         </div>
       </div>
@@ -331,7 +372,7 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
 
       {/* Футер */}
       <div className="pb-4 px-4 flex items-center justify-between">
-        <img src="/logo.png" alt="Logo" className="h-12 opacity-70" />
+        <img src="/logo.png" alt="Logo" className="h-20 opacity-70" />
         <p className="text-white/50 text-sm">{localization.t('version')}</p>
       </div>
     </div>

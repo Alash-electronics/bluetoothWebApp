@@ -12,22 +12,23 @@ HM-10 Bluetooth Controller is a React web application for controlling HM-10 Blue
 # Start development server (http://localhost:5173/)
 npm run dev
 
-# Build for production
+# Build for production (includes TypeScript compilation)
 npm run build
 
 # Lint code
 npm run lint
 
-# Preview production build
+# Preview production build locally
 npm run preview
 ```
 
 ## Tech Stack
 
 - **React 19** with TypeScript and strict mode
-- **Vite 7** for build tooling
+- **Vite 7** for build tooling and HMR
 - **Tailwind CSS 3** for styling
 - **Web Bluetooth API** for BLE communication
+- **localStorage** for persistent settings storage
 
 ## Architecture
 
@@ -90,14 +91,53 @@ Navigation flow:
 2. User selects device type → corresponding view
 3. Disconnect → automatically returns to DeviceSelection
 
+### Smart Home Architecture
+
+Smart Home mode operates on a room-based hierarchy:
+
+**Data Structure:**
+```typescript
+// Rooms (max 6)
+RoomConfig { id, name, icon }
+
+// Devices (6 default: LED, Window, Music, Door, Fan, AC)
+SmartHomeDeviceConfig { id, label, onCommand, offCommand }
+
+// Sensors (3 default: Motion, Gas, Rain)
+SmartHomeSensorConfig { id, label, onMessage, offMessage }
+
+// AC Control (centralized config)
+SmartHomeACConfig {
+  onCommand, offCommand,           // K/L
+  heatCommand, coolCommand,         // H/C
+  dryCommand, fanCommand,           // Y/N
+  tempUpCommand, tempDownCommand,   // Z/V
+  tempSetPrefix                     // T (e.g., "T24" for 24°C)
+}
+```
+
+**Command Protocol:**
+- All commands are **single alphanumeric characters** (A-Z, a-z, 0-9)
+- Case-sensitive (e.g., 'L' = LED ON, 'l' = LED OFF)
+- Sent directly via bluetoothService.sendData(command)
+- No delimiters or terminators needed
+
+**State Management:**
+- Device states tracked locally in SmartHomeRoomControl (useState)
+- Sensor states updated via bluetoothService data callbacks
+- Configuration changes polled every 1000ms for live updates
+- AC temperature range: 16-30°C with local state
+
 ### Settings Services Pattern
 
 Each feature has its own settings service with localStorage persistence:
 
-- **buttonSettingsService:** Control panel button configurations
+- **buttonSettingsService:** Control panel button configurations (RC car mode)
 - **macroSettings:** Terminal macro button commands
-- **appSettings:** App-wide settings (vibration, theme)
-- **localization:** Multi-language support with observer pattern
+- **smartHomeSettings:** Smart home device/sensor/AC commands (single character per command)
+- **roomSettings:** Smart home room configurations (max 6 rooms)
+- **appSettings:** App-wide settings (vibration, theme, language)
+- **localization:** Multi-language support (ru/en/kk) with observer pattern
 
 All settings services follow this pattern:
 ```typescript
@@ -112,8 +152,21 @@ class SettingsService {
   save(config: ConfigType[]): void {
     localStorage.setItem(this.storageKey, JSON.stringify(config));
   }
+
+  update(id: string, updates: Partial<ConfigType>): void {
+    const items = this.get();
+    const index = items.findIndex(i => i.id === id);
+    if (index !== -1) {
+      items[index] = { ...items[index], ...updates };
+      this.save(items);
+    }
+  }
 }
+
+export const settingsInstance = new SettingsService();
 ```
+
+**Important:** Smart home commands must be single characters (1 letter or digit) validated with `/[^a-zA-Z0-9]/g`
 
 ### Component Communication Patterns
 
@@ -135,14 +188,26 @@ useEffect(() => {
 }, []);
 ```
 
-**Settings Persistence:** Components poll settings services via intervals
+**Settings Persistence:** Components poll settings services via intervals for real-time updates
 ```typescript
 useEffect(() => {
   const interval = setInterval(() => {
-    setMacros(macroSettings.getMacros());
+    setDeviceConfigs(smartHomeSettings.getDevices());
+    setSensorConfigs(smartHomeSettings.getSensors());
+    setAcConfig(smartHomeSettings.getACConfig());
   }, 1000);
   return () => clearInterval(interval);
 }, []);
+```
+
+**Configuration Lookups:** Use helper functions with fallbacks for dynamic labels
+```typescript
+const getDeviceConfig = (deviceId: string) => {
+  return deviceConfigs.find(d => d.id === deviceId);
+};
+
+// In JSX
+<span>{getDeviceConfig('led')?.label || 'LED'}</span>
 ```
 
 ## Important UI/UX Patterns
@@ -166,7 +231,9 @@ All Bluetooth status buttons are clickable:
 SettingsPanel is a full-screen modal overlay that appears over any view:
 - Has a `mode` prop to show only relevant settings ('control' | 'terminal' | 'smartHome')
 - When mode is specified, hides tabs and shows single settings section
-- Settings auto-save on change, no "Save" button needed
+- Settings auto-save on change via onChange handlers - no "Save" button needed
+- Smart home settings include device names, sensor names, and single-character commands
+- Input validation enforces constraints (e.g., maxLength={1} for command inputs)
 
 ## Critical Implementation Notes
 
@@ -223,21 +290,23 @@ useEffect(() => {
 src/
 ├── components/          # React UI components
 │   ├── SplashScreen.tsx          # Initial 2-second loading screen
-│   ├── DeviceSelection.tsx       # Main menu with device type cards
+│   ├── DeviceSelection.tsx       # Main menu with device type cards (Terminal/RC/Smart Home)
 │   ├── ControlPanel.tsx          # RC car gamepad interface
-│   ├── TerminalPanel.tsx         # Serial terminal (DO NOT MODIFY)
-│   ├── SmartHomePanel.tsx        # Room selection for smart home
-│   ├── SmartHomeRoomControl.tsx  # AC/appliance controls
+│   ├── TerminalPanel.tsx         # Serial terminal with macro buttons (DO NOT MODIFY)
+│   ├── SmartHomePanel.tsx        # Room selection screen (up to 6 rooms)
+│   ├── SmartHomeRoomControl.tsx  # Room device/sensor/AC controls (dynamic labels)
 │   ├── ConnectionPanel.tsx       # Legacy connection UI
 │   ├── DataPanel.tsx             # Legacy terminal UI
-│   └── SettingsPanel.tsx         # Modal settings overlay
-├── services/           # Business logic singletons
-│   ├── bluetoothService.ts      # Core BLE communication
+│   └── SettingsPanel.tsx         # Modal settings overlay (mode-aware)
+├── services/           # Business logic singletons with localStorage
+│   ├── bluetoothService.ts      # Core BLE communication (HM-10 UART)
 │   ├── buttonSettings.ts        # Control panel button configs
-│   ├── macroSettings.ts         # Terminal macro configs
-│   ├── appSettings.ts           # App-wide settings
-│   └── localization.ts          # i18n with observer pattern
-└── App.tsx             # Root component with view routing
+│   ├── macroSettings.ts         # Terminal macro button commands
+│   ├── smartHomeSettings.ts     # Smart home device/sensor/AC configs
+│   ├── roomSettings.ts          # Smart home room management
+│   ├── appSettings.ts           # App-wide settings (vibration, theme)
+│   └── localization.ts          # i18n with observer pattern (ru/en/kk)
+└── App.tsx             # Root component with view routing (ViewMode state)
 ```
 
 ## Common Pitfalls
@@ -247,6 +316,10 @@ src/
 3. **Missing vibration feedback** - Users expect haptic response on all interactions
 4. **Hardcoded strings** - Always use localization.t() for user-facing text
 5. **Modifying TerminalPanel** - This component is complete and should not be changed
+6. **Hardcoded device/sensor labels** - Use `getDeviceConfig(id)?.label` instead of hardcoded strings in SmartHomeRoomControl
+7. **Invalid smart home commands** - Commands must be single alphanumeric characters, validated with regex
+8. **Missing polling intervals** - Settings changes require polling (1000ms) to reflect in UI
+9. **Exceeding room limit** - Smart home supports maximum 6 rooms, enforce in UI
 
 ## Browser Compatibility
 

@@ -8,9 +8,10 @@ import { SplashScreen } from './components/SplashScreen';
 import { SmartHomePanel } from './components/SmartHomePanel';
 import { SmartHomeRoomControl } from './components/SmartHomeRoomControl';
 import { TerminalPanel } from './components/TerminalPanel';
+import { JoystickPanel } from './components/JoystickPanel';
 import { type ConnectionStatus } from './services/bluetoothService';
 
-type ViewMode = 'selection' | 'control' | 'terminal' | 'connection' | 'smartHome' | 'smartHomeRoom';
+type ViewMode = 'selection' | 'control' | 'terminal' | 'connection' | 'smartHome' | 'smartHomeRoom' | 'joystick';
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -43,6 +44,8 @@ function App() {
             setViewMode('terminal');
           } else if (deviceType === 'smartHome') {
             setViewMode('smartHome');
+          } else if (deviceType === 'joystick') {
+            setViewMode('joystick');
           }
         }}
       />
@@ -73,6 +76,24 @@ function App() {
         <ControlPanel
           connectionStatus={connectionStatus}
           deviceName={deviceName}
+          onBack={() => setViewMode('selection')}
+          onOpenSettings={() => setShowSettings(true)}
+        />
+        {showSettings && (
+          <SettingsPanel mode="control" onClose={() => setShowSettings(false)} />
+        )}
+      </>
+    );
+  }
+
+  // Режим Joystick - полноэкранный
+  if (viewMode === 'joystick') {
+    return (
+      <>
+        <JoystickPanel
+          connectionStatus={connectionStatus}
+          deviceName={deviceName}
+          onBack={() => setViewMode('selection')}
           onOpenSettings={() => setShowSettings(true)}
         />
         {showSettings && (

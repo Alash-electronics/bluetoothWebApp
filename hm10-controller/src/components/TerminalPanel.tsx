@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { appSettings } from '../services/appSettings';
 import { macroSettings, type MacroConfig } from '../services/macroSettings';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 interface TerminalPanelProps {
   connectionStatus: ConnectionStatus;
@@ -21,6 +22,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   onBack,
   onOpenSettings
 }) => {
+  useFullscreen();
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(initialConnectionStatus);
   const isConnected = connectionStatus === 'connected';
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -168,7 +170,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
 
           {/* Заголовок с логотипом */}
           <div className="flex-1 flex items-center justify-center gap-3">
-            <img src="/logo.png" alt="Logo" className="h-16 opacity-90" />
+            <img src="/logo.png" alt="Logo" className="h-20 opacity-90" />
             <h1 className="text-white text-2xl font-semibold">Terminal</h1>
           </div>
 
