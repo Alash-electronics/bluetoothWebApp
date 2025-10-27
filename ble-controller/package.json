@@ -1,8 +1,33 @@
 {
   "name": "ble-controller",
-  "private": true,
-  "version": "0.0.0",
+  "private": false,
+  "version": "1.0.0",
+  "description": "A powerful web-based Bluetooth Low Energy controller for Arduino and embedded devices with multiple control modes including Terminal, RC Car, Joystick, and Smart Home interfaces",
   "type": "module",
+  "author": "Alash Electronics",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/bluetoothWebApp.git"
+  },
+  "homepage": "https://alash-electronics.github.io/",
+  "keywords": [
+    "bluetooth",
+    "ble",
+    "web-bluetooth",
+    "arduino",
+    "hm-10",
+    "iot",
+    "react",
+    "typescript",
+    "smart-home",
+    "remote-control",
+    "embedded",
+    "uart"
+  ],
+  "bugs": {
+    "url": "https://github.com/yourusername/bluetoothWebApp/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
