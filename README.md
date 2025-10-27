@@ -26,14 +26,27 @@ A universal web-based Bluetooth controller application for Arduino and embedded 
 
 Visit the live application: **https://alash-electronics.github.io/bluetoothWebApp/**
 
-## Browser Compatibility
+## Platform Compatibility
 
+### Web (PWA)
 The Web Bluetooth API is required for this application to function:
 
-- Chrome 56+ (desktop & Android)
-- Edge 79+
-- Opera 43+
-- **Not supported:** Firefox, Safari, iOS browsers
+- ✅ Chrome 56+ (desktop & Android)
+- ✅ Edge 79+
+- ✅ Opera 43+
+- ❌ **Not supported:** Firefox, Safari, iOS browsers
+
+### Native Apps (via Capacitor)
+Full Bluetooth support on mobile platforms:
+
+- ✅ **iOS** - Native app via Capacitor (requires Xcode to build)
+- ✅ **Android** - Native app via Capacitor (can be built on any OS)
+
+**Note:** The app automatically detects the platform and uses the appropriate Bluetooth API:
+- Web Bluetooth API for browsers
+- Capacitor Bluetooth LE for native iOS/Android apps
+
+See [CAPACITOR_GUIDE.md](./CAPACITOR_GUIDE.md) for building native apps.
 
 ## Hardware Requirements
 
@@ -312,6 +325,25 @@ For questions, issues, or feature requests:
 - Visit the discussions page
 - Check existing documentation in `CLAUDE.md`
 
+## Platform Support
+
+### Web (PWA) ✅
+- Installable Progressive Web App
+- Offline functionality with Service Worker
+- Auto-updates when online
+- Works on Chrome/Edge/Opera (Desktop & Android)
+- See [PWA_INSTALL_GUIDE.md](./PWA_INSTALL_GUIDE.md) for installation instructions
+
+### iOS Native App ✅
+- Full Bluetooth support via Capacitor
+- Available through App Store (or build yourself)
+- See [CAPACITOR_GUIDE.md](./CAPACITOR_GUIDE.md) for build instructions
+
+### Android Native App ✅
+- Full Bluetooth support via Capacitor
+- Available through Google Play Store (or build yourself)
+- See [CAPACITOR_GUIDE.md](./CAPACITOR_GUIDE.md) for build instructions
+
 ## Roadmap
 
 Future enhancements planned:
@@ -320,9 +352,10 @@ Future enhancements planned:
 - [ ] Macro recording and playback
 - [ ] Multiple device connection support
 - [ ] Cloud settings synchronization
-- [ ] PWA support for offline functionality
 - [ ] Additional Arduino examples
 - [ ] Video tutorials and documentation
+- [x] ~~PWA support for offline functionality~~ ✅ Completed
+- [x] ~~iOS support~~ ✅ Completed via Capacitor
 
 ---
 
