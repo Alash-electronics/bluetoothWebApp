@@ -1,0 +1,46 @@
+{
+  "name": "BLE Controller - Bluetooth Device Control",
+  "short_name": "BLE Controller",
+  "description": "Universal Bluetooth controller for Arduino and embedded devices. Supports HC-06, HC-05, HM-10, ESP32 and other BLE/Bluetooth modules.",
+  "start_url": "/bluetoothWebApp/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0ea5e9",
+  "orientation": "any",
+  "scope": "/bluetoothWebApp/",
+  "icons": [
+    {
+      "src": "/bluetoothWebApp/logo.png",
+      "sizes": "1000x1000",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/bluetoothWebApp/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/bluetoothWebApp/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["utilities", "productivity", "development"],
+  "screenshots": [
+    {
+      "src": "/bluetoothWebApp/screenshot-1.png",
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "share_target": {
+    "action": "/bluetoothWebApp/",
+    "method": "GET"
+  },
+  "related_applications": [],
+  "prefer_related_applications": false
+}
