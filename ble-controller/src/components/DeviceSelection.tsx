@@ -13,7 +13,7 @@ interface DeviceSelectionProps {
 export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelected, onConnectionChange, onSelectDeviceType }) => {
   const [, forceUpdate] = useState({});
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(bluetoothService.getConnectionStatus());
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [_isConnecting, setIsConnecting] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   useFullscreen();
 
@@ -102,7 +102,7 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
         setIsConnecting(true);
         try {
           const device = await bluetoothService.connect();
-          onConnectionChange(true, device.name);
+          onConnectionChange('connected', device.name);
           appSettings.vibrate(100);
           onSelectDeviceType?.('terminal');
         } catch (error) {
@@ -125,7 +125,7 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
         setIsConnecting(true);
         try {
           const device = await bluetoothService.connect();
-          onConnectionChange(true, device.name);
+          onConnectionChange('connected', device.name);
           appSettings.vibrate(100);
           onSelectDeviceType?.('smartHome');
         } catch (error) {
@@ -148,7 +148,7 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
         setIsConnecting(true);
         try {
           const device = await bluetoothService.connect();
-          onConnectionChange(true, device.name);
+          onConnectionChange('connected', device.name);
           appSettings.vibrate(100);
           onDeviceSelected();
         } catch (error) {

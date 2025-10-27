@@ -16,10 +16,10 @@ interface SmartHomeRoomControlProps {
 type ACMode = 'heat' | 'cool' | 'dry' | 'fan';
 
 export const SmartHomeRoomControl: React.FC<SmartHomeRoomControlProps> = ({
-  roomId,
-  roomName,
+  roomId: _roomId,
+  roomName: _roomName,
   connectionStatus: initialConnectionStatus,
-  deviceName,
+  deviceName: _deviceName,
   onBack,
   onOpenSettings
 }) => {
@@ -302,7 +302,7 @@ export const SmartHomeRoomControl: React.FC<SmartHomeRoomControlProps> = ({
                 </svg>
               </div>
               <div className="flex-1">
-                <div className="text-white font-semibold text-sm">{deviceName || 'HC-05'}</div>
+                <div className="text-white font-semibold text-sm">{_deviceName || 'HC-05'}</div>
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${
                     connectionStatus === 'connected'

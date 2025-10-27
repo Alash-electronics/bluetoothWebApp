@@ -19,7 +19,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
   const [lastCommand, setLastCommand] = useState<string>('');
   const [buttonConfigs, setButtonConfigs] = useState<ControlButtonConfig[]>([]);
   const [gamepadButtonStates, setGamepadButtonStates] = useState<boolean[]>(new Array(20).fill(false));
-  const [gamepadConnected, setGamepadConnected] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
 
@@ -216,7 +215,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
       const gamepad = gamepads[0]; // Используем первый подключенный геймпад
 
       if (gamepad) {
-        setGamepadConnected(true);
         const newStates = [...gamepadButtonStates];
 
         // Проверяем только нужные кнопки
@@ -246,8 +244,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
         });
 
         setGamepadButtonStates(newStates);
-      } else {
-        setGamepadConnected(false);
       }
 
       animationId = requestAnimationFrame(pollGamepad);

@@ -18,7 +18,7 @@ interface JoystickPosition {
 
 export const JoystickPanel: React.FC<JoystickPanelProps> = ({
   connectionStatus: initialConnectionStatus,
-  deviceName,
+  deviceName: _deviceName,
   onBack,
   onOpenSettings,
 }) => {
@@ -29,15 +29,13 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
   const [rightJoystickPos, setRightJoystickPos] = useState<JoystickPosition>({ x: 0, y: 0 });
   const [isDraggingLeft, setIsDraggingLeft] = useState(false);
   const [isDraggingRight, setIsDraggingRight] = useState(false);
-  const leftJoystickRef = useRef<HTMLDivElement>(null);
-  const rightJoystickRef = useRef<HTMLDivElement>(null);
   const lastCommandRef = useRef<string>('');
   const lastSendTimeRef = useRef<number>(0);
   const prevButtonsRef = useRef<boolean[]>(new Array(18).fill(false));
   const prevL2ValueRef = useRef<number>(0);
   const prevR2ValueRef = useRef<number>(0);
   const [gamepadConnected, setGamepadConnected] = useState(false);
-  const [gamepadName, setGamepadName] = useState<string>('');
+  const [_gamepadName, setGamepadName] = useState<string>('');
   const gamepadIndexRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const leftTouchIdRef = useRef<number | null>(null);
@@ -147,7 +145,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
       appSettings.vibrate([50, 50, 50]); // Тройная вибрация при подключении
     };
 
-    const handleGamepadDisconnected = (e: GamepadEvent) => {
+    const handleGamepadDisconnected = (_e: GamepadEvent) => {
       setGamepadConnected(false);
       setGamepadName('');
       gamepadIndexRef.current = null;
@@ -328,42 +326,6 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
 
   }, [leftJoystickPos, rightJoystickPos, buttons, l2Value, r2Value, isConnected]);
 
-  const handleLeftJoystickStart = (clientX: number, clientY: number) => {
-    if (!isConnected || gamepadConnected) return; // Блокируем если подключен физический геймпад
-    setIsDraggingLeft(true);
-    updateLeftJoystickPosition(clientX, clientY);
-  };
-
-  const handleLeftJoystickMove = (clientX: number, clientY: number) => {
-    if (!isDraggingLeft || gamepadConnected) return;
-    updateLeftJoystickPosition(clientX, clientY);
-  };
-
-  const handleLeftJoystickEnd = () => {
-    if (gamepadConnected) return;
-    setIsDraggingLeft(false);
-    setLeftJoystickPos({ x: 0, y: 0 });
-    appSettings.vibrate(10);
-  };
-
-  const handleRightJoystickStart = (clientX: number, clientY: number) => {
-    if (!isConnected || gamepadConnected) return; // Блокируем если подключен физический геймпад
-    setIsDraggingRight(true);
-    updateRightJoystickPosition(clientX, clientY);
-  };
-
-  const handleRightJoystickMove = (clientX: number, clientY: number) => {
-    if (!isDraggingRight || gamepadConnected) return;
-    updateRightJoystickPosition(clientX, clientY);
-  };
-
-  const handleRightJoystickEnd = () => {
-    if (gamepadConnected) return;
-    setIsDraggingRight(false);
-    setRightJoystickPos({ x: 0, y: 0 });
-    appSettings.vibrate(10);
-  };
-
   // Обработчик виртуальных кликов по кнопкам
   const handleButtonClick = (buttonIndex: number) => {
     if (!isConnected || gamepadConnected) return;
@@ -418,7 +380,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
       const t = e.touches[i];
       const otherTouchId = isLeft ? rightTouchIdRef.current : leftTouchIdRef.current;
       if (t.identifier !== otherTouchId) {
-        touch = t;
+        touch = t as Touch;
         break;
       }
     }
@@ -432,7 +394,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
       rightTouchIdRef.current = touch.identifier;
     }
 
-    const svg = e.currentTarget.ownerSVGElement;
+    const svg = (e.currentTarget as SVGElement).ownerSVGElement;
     if (!svg) return;
 
     const pt = svg.createSVGPoint();
@@ -483,14 +445,14 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
     let touch: Touch | null = null;
     for (let i = 0; i < e.touches.length; i++) {
       if (e.touches[i].identifier === touchId) {
-        touch = e.touches[i];
+        touch = e.touches[i] as Touch;
         break;
       }
     }
 
     if (!touch) return;
 
-    const svg = e.currentTarget.ownerSVGElement;
+    const svg = (e.currentTarget as SVGElement).ownerSVGElement;
     if (!svg) return;
 
     const pt = svg.createSVGPoint();
@@ -537,54 +499,6 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
       rightTouchIdRef.current = null; // Очищаем touch ID
     }
     appSettings.vibrate(15);
-  };
-
-  const updateLeftJoystickPosition = (clientX: number, clientY: number) => {
-    if (!leftJoystickRef.current) return;
-
-    const rect = leftJoystickRef.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const maxRadius = rect.width / 2;
-
-    let deltaX = clientX - centerX;
-    let deltaY = clientY - centerY;
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-    // Ограничиваем радиус
-    if (distance > maxRadius) {
-      deltaX = (deltaX / distance) * maxRadius;
-      deltaY = (deltaY / distance) * maxRadius;
-    }
-
-    setLeftJoystickPos({
-      x: deltaX / maxRadius,
-      y: deltaY / maxRadius,
-    });
-  };
-
-  const updateRightJoystickPosition = (clientX: number, clientY: number) => {
-    if (!rightJoystickRef.current) return;
-
-    const rect = rightJoystickRef.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const maxRadius = rect.width / 2;
-
-    let deltaX = clientX - centerX;
-    let deltaY = clientY - centerY;
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-    // Ограничиваем радиус
-    if (distance > maxRadius) {
-      deltaX = (deltaX / distance) * maxRadius;
-      deltaY = (deltaY / distance) * maxRadius;
-    }
-
-    setRightJoystickPos({
-      x: deltaX / maxRadius,
-      y: deltaY / maxRadius,
-    });
   };
 
   const handleBackClick = () => {
@@ -638,11 +552,6 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
       }
     }
   };
-
-  const leftKnobX = leftJoystickPos.x * 60; // 60px max offset
-  const leftKnobY = leftJoystickPos.y * 60;
-  const rightKnobX = rightJoystickPos.x * 60;
-  const rightKnobY = rightJoystickPos.y * 60;
 
   if (isPortrait) {
     return (
