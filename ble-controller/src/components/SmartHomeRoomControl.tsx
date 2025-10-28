@@ -67,15 +67,24 @@ export const SmartHomeRoomControl: React.FC<SmartHomeRoomControlProps> = ({
     bluetoothService.onDataReceived((data) => {
       const message = data.trim().toUpperCase();
 
-      // Обработка данных датчиков
-      if (message.includes('MOTION_ON')) setMotionDetected(true);
-      else if (message.includes('MOTION_OFF')) setMotionDetected(false);
+      // Обработка данных датчиков в формате "SENSOR:1" или "SENSOR:0"
+      if (message.includes('MOTION:1') || message.includes('MOTION_ON')) {
+        setMotionDetected(true);
+      } else if (message.includes('MOTION:0') || message.includes('MOTION_OFF')) {
+        setMotionDetected(false);
+      }
 
-      if (message.includes('GAS_ON')) setGasDetected(true);
-      else if (message.includes('GAS_OFF')) setGasDetected(false);
+      if (message.includes('GAS:1') || message.includes('GAS_ON')) {
+        setGasDetected(true);
+      } else if (message.includes('GAS:0') || message.includes('GAS_OFF')) {
+        setGasDetected(false);
+      }
 
-      if (message.includes('RAIN_ON')) setRainDetected(true);
-      else if (message.includes('RAIN_OFF')) setRainDetected(false);
+      if (message.includes('RAIN:1') || message.includes('RAIN_ON')) {
+        setRainDetected(true);
+      } else if (message.includes('RAIN:0') || message.includes('RAIN_OFF')) {
+        setRainDetected(false);
+      }
     });
 
     // Периодически обновляем конфигурацию AC, устройств и датчиков (на случай если пользователь изменил их в настройках)
