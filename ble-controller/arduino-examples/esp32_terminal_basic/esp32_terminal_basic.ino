@@ -27,6 +27,9 @@ BLECharacteristic *pTxCharacteristic;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 
+// Forward declaration
+void handleCommand(char cmd);
+
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
@@ -43,7 +46,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
 class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
-      std::string rxValue = pCharacteristic->getValue();
+      String rxValue = pCharacteristic->getValue().c_str();
 
       if (rxValue.length() > 0) {
         char command = rxValue[0];
@@ -63,7 +66,7 @@ void setup() {
   Serial.println("ESP32 BLE Terminal Starting...");
 
   // Create the BLE Device
-  BLEDevice::init("BLE Controller");
+  BLEDevice::init("HM-10");  // Name compatible with app filters
 
   // Create the BLE Server
   pServer = BLEDevice::createServer();
