@@ -12,6 +12,7 @@
  *   Door Lock      -> GPIO 18
  *   Fan Relay      -> GPIO 19
  *   AC Relay       -> GPIO 21
+ * 
  *
  * Sensors:
  *   Motion Sensor  -> GPIO 34 (input only)

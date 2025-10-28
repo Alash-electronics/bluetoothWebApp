@@ -35,11 +35,25 @@ export const BleDeviceListModal = ({ onConnected, onCancel, onError }: BleDevice
 
         // Start scanning for BLE devices
         await BleClient.requestLEScan({}, (result) => {
-          // Filter: only add devices with names (skip "Unknown")
-          if (result.device.name && result.device.name !== 'Unknown') {
-            discoveredDevices.set(result.device.deviceId, result.device);
-            // Update UI with new list
-            setDevices(Array.from(discoveredDevices.values()));
+          // Filter: only show devices with known prefixes (BT, HM, ESP, Arduino, etc.)
+          // This filters out "Unknown" and random BLE devices
+          const name = result.device.name;
+          if (name && name !== 'Unknown') {
+            // Accept devices that start with common module names
+            const validPrefixes = ['BT', 'HM', 'ESP', 'Arduino', 'HC-', 'JDY', 'MLT', 'AT-'];
+            const hasValidPrefix = validPrefixes.some(prefix => name.startsWith(prefix));
+
+            // Also accept any device that doesn't look like a system device
+            // (e.g., not starting with common iOS/Android device names)
+            const isSystemDevice = name.includes('iPhone') || name.includes('iPad') ||
+                                   name.includes('MacBook') || name.includes('Apple') ||
+                                   name.includes('Flipper');
+
+            if (hasValidPrefix || (!isSystemDevice && name.length > 0)) {
+              discoveredDevices.set(result.device.deviceId, result.device);
+              // Update UI with new list
+              setDevices(Array.from(discoveredDevices.values()));
+            }
           }
         });
 
