@@ -2,7 +2,24 @@
  * ESP32 BLE RC Car Control Example
  *
  * This sketch demonstrates motor control using ESP32's built-in BLE.
- * Compatible with the RC Car Control panel in the web app.
+ * Compatible with the Control Panel mode in Alashed BLE app.
+ *
+ * Features:
+ * - WASD controls (left buttons) - press/release support
+ * - Arrow keys (right joystick) - U/L/R/B
+ * - 3 action buttons with feedback
+ * - LED status indicator
+ *
+ * Commands:
+ * - W/w: Forward / Stop
+ * - A/a: Left / Stop
+ * - S/s: Backward / Stop
+ * - D/d: Right / Stop
+ * - U/L/R/B: Arrow keys (press)
+ * - u/l/r/b: Arrow keys (release)
+ * - 1: Speed boost
+ * - 2: Horn (blink LED 3x)
+ * - 3: Emergency stop
  *
  * Hardware connections:
  * L298N Motor Driver:
@@ -13,7 +30,7 @@
  *   ENA -> GPIO 25 (PWM for motor A speed)
  *   ENB -> GPIO 26 (PWM for motor B speed)
  *
- * LED (optional): GPIO 2 (built-in)
+ * LED: GPIO 2 (built-in)
  */
 
 #include <BLEDevice.h>
@@ -56,6 +73,7 @@ void moveForward();
 void moveBackward();
 void turnLeft();
 void turnRight();
+void blinkLED(int times);
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
@@ -104,7 +122,7 @@ void setup() {
   Serial.println("ESP32 BLE RC Car Starting...");
 
   // Create BLE Device
-  BLEDevice::init("BT05");  // Name compatible with app filters
+  BLEDevice::init("HM-10");  // Name compatible with app filters
 
   // Create BLE Server
   pServer = BLEDevice::createServer();
@@ -144,50 +162,100 @@ void loop() {
 
 void handleCommand(char cmd) {
   switch(cmd) {
-    // Movement commands
-    case 'W':  // Forward
+    // WASD controls (left buttons) - UPPERCASE = press, lowercase = release
+    case 'W':
       moveForward();
       break;
 
-    case 'S':  // Backward
-      moveBackward();
-      break;
-
-    case 'A':  // Turn left
-      turnLeft();
-      break;
-
-    case 'D':  // Turn right
-      turnRight();
-      break;
-
-    case 'X':  // Stop
+    case 'w':
       stopMotors();
       break;
 
-    // Speed control
-    case '1':  // Slow
-      motorSpeed = 150;
-      Serial.println("Speed: Slow");
+    case 'A':
+      turnLeft();
       break;
 
-    case '2':  // Medium
-      motorSpeed = 200;
-      Serial.println("Speed: Medium");
+    case 'a':
+      stopMotors();
       break;
 
-    case '3':  // Fast
-      motorSpeed = 255;
-      Serial.println("Speed: Fast");
+    case 'S':
+      moveBackward();
       break;
 
-    // LED control
-    case 'L':  // LED on
+    case 's':
+      stopMotors();
+      break;
+
+    case 'D':
+      turnRight();
+      break;
+
+    case 'd':
+      stopMotors();
+      break;
+
+    // Arrow keys (right joystick)
+    case 'U':  // Up
+      moveForward();
+      break;
+
+    case 'u':
+      stopMotors();
+      break;
+
+    case 'L':  // Left
+      turnLeft();
+      break;
+
+    case 'l':
+      stopMotors();
+      break;
+
+    case 'R':  // Right
+      turnRight();
+      break;
+
+    case 'r':
+      stopMotors();
+      break;
+
+    case 'B':  // Down/Back
+      moveBackward();
+      break;
+
+    case 'b':
+      stopMotors();
+      break;
+
+    // Button 1 - Speed boost
+    case '1':
+      if (deviceConnected) {
+        pTxCharacteristic->setValue("Speed Boost ON");
+        pTxCharacteristic->notify();
+      }
       digitalWrite(LED_PIN, HIGH);
+      Serial.println("Button 1: Speed Boost");
       break;
 
-    case 'l':  // LED off
-      digitalWrite(LED_PIN, LOW);
+    // Button 2 - Horn/Light
+    case '2':
+      if (deviceConnected) {
+        pTxCharacteristic->setValue("Horn!");
+        pTxCharacteristic->notify();
+      }
+      blinkLED(3);
+      Serial.println("Button 2: Horn");
+      break;
+
+    // Button 3 - Emergency stop
+    case '3':
+      stopMotors();
+      if (deviceConnected) {
+        pTxCharacteristic->setValue("Emergency Stop");
+        pTxCharacteristic->notify();
+      }
+      Serial.println("Button 3: Emergency Stop");
       break;
 
     default:
@@ -245,4 +313,14 @@ void stopMotors() {
   digitalWrite(MOTOR_B_IN4, LOW);
   ledcWrite(MOTOR_A_EN, 0);
   ledcWrite(MOTOR_B_EN, 0);
+  digitalWrite(LED_PIN, LOW);
+}
+
+void blinkLED(int times) {
+  for(int i = 0; i < times; i++) {
+    digitalWrite(LED_PIN, HIGH);
+    delay(100);
+    digitalWrite(LED_PIN, LOW);
+    delay(100);
+  }
 }
