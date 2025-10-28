@@ -3,6 +3,8 @@ import { localization } from '../services/localization';
 import { appSettings } from '../services/appSettings';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { roomSettings, type RoomConfig } from '../services/roomSettings';
+import { Capacitor } from '@capacitor/core';
+import { BleDeviceListModal } from './BleDeviceListModal';
 
 interface SmartHomePanelProps {
   connectionStatus: ConnectionStatus;
@@ -26,6 +28,7 @@ export const SmartHomePanel: React.FC<SmartHomePanelProps> = ({
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomIcon, setNewRoomIcon] = useState('🏠');
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
 
   // Обновляем локальный статус при изменении prop
   useEffect(() => {
@@ -111,11 +114,17 @@ export const SmartHomePanel: React.FC<SmartHomePanelProps> = ({
       }
     } else {
       // Если не подключено - предлагаем подключиться
-      try {
-        await bluetoothService.connect();
-      } catch (error) {
-        console.error('Connection error:', error);
-        appSettings.vibrate([50, 50, 50]);
+      if (Capacitor.isNativePlatform()) {
+        // На iOS/Android показываем кастомный список устройств
+        setShowDeviceModal(true);
+      } else {
+        // В браузере используем системный диалог
+        try {
+          await bluetoothService.connect();
+        } catch (error) {
+          console.error('Connection error:', error);
+          appSettings.vibrate([50, 50, 50]);
+        }
       }
     }
   };
@@ -331,6 +340,19 @@ export const SmartHomePanel: React.FC<SmartHomePanelProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Device selection modal */}
+      {showDeviceModal && (
+        <BleDeviceListModal
+          onConnected={() => setShowDeviceModal(false)}
+          onCancel={() => setShowDeviceModal(false)}
+          onError={(error) => {
+            setShowDeviceModal(false);
+            console.error('Connection error:', error);
+            appSettings.vibrate([50, 50, 50]);
+          }}
+        />
       )}
     </div>
   );

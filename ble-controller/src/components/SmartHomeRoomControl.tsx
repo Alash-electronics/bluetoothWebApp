@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { appSettings } from '../services/appSettings';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { smartHomeSettings, type SmartHomeACConfig, type SmartHomeDeviceConfig } from '../services/smartHomeSettings';
+import { Capacitor } from '@capacitor/core';
+import { BleDeviceListModal } from './BleDeviceListModal';
 
 interface SmartHomeRoomControlProps {
   roomId: string;
@@ -45,6 +47,7 @@ export const SmartHomeRoomControl: React.FC<SmartHomeRoomControlProps> = ({
 
   // Конфигурация устройств из настроек
   const [deviceConfigs, setDeviceConfigs] = useState<SmartHomeDeviceConfig[]>(smartHomeSettings.getDevices());
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
 
   // Конфигурация датчиков из настроек
   const [sensorConfigs, setSensorConfigs] = useState(smartHomeSettings.getSensors());
@@ -120,11 +123,17 @@ export const SmartHomeRoomControl: React.FC<SmartHomeRoomControlProps> = ({
       }
     } else {
       // Если не подключено - предлагаем подключиться
-      try {
-        await bluetoothService.connect();
-      } catch (error) {
-        console.error('Connection error:', error);
-        appSettings.vibrate([50, 50, 50]);
+      if (Capacitor.isNativePlatform()) {
+        // На iOS/Android показываем кастомный список устройств
+        setShowDeviceModal(true);
+      } else {
+        // В браузере используем системный диалог
+        try {
+          await bluetoothService.connect();
+        } catch (error) {
+          console.error('Connection error:', error);
+          appSettings.vibrate([50, 50, 50]);
+        }
       }
     }
   };
@@ -601,6 +610,19 @@ export const SmartHomeRoomControl: React.FC<SmartHomeRoomControlProps> = ({
       <div className="fixed bottom-20 left-4">
         <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="h-20 opacity-70" />
       </div>
+
+      {/* Device selection modal */}
+      {showDeviceModal && (
+        <BleDeviceListModal
+          onConnected={() => setShowDeviceModal(false)}
+          onCancel={() => setShowDeviceModal(false)}
+          onError={(error) => {
+            setShowDeviceModal(false);
+            console.error('Connection error:', error);
+            appSettings.vibrate([50, 50, 50]);
+          }}
+        />
+      )}
     </div>
   );
 };

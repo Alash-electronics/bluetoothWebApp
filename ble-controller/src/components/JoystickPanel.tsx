@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { appSettings } from '../services/appSettings';
 import { localization } from '../services/localization';
+import { Capacitor } from '@capacitor/core';
+import { BleDeviceListModal } from './BleDeviceListModal';
 
 interface JoystickPanelProps {
   connectionStatus: ConnectionStatus;
@@ -34,6 +36,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
   const prevL2ValueRef = useRef<number>(0);
   const prevR2ValueRef = useRef<number>(0);
   const [gamepadConnected, setGamepadConnected] = useState(false);
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [_gamepadName, setGamepadName] = useState<string>('');
   const gamepadIndexRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -521,16 +524,23 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
         }
       }
     } else {
-      try {
-        await bluetoothService.connect();
-      } catch (error) {
-        appSettings.vibrate([50, 50, 50]);
+      if (Capacitor.isNativePlatform()) {
+        // На iOS/Android показываем кастомный список устройств
+        setShowDeviceModal(true);
+      } else {
+        // В браузере используем системный диалог
+        try {
+          await bluetoothService.connect();
+        } catch (error) {
+          appSettings.vibrate([50, 50, 50]);
+        }
       }
     }
   };
 
   if (isPortrait) {
     return (
+      <>
       <div className="fixed inset-0 bg-gray-900 z-[9999] flex items-center justify-center p-4 select-none">
         <div className="text-center">
           <svg className="w-20 h-20 text-purple-400 mx-auto mb-6 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -540,10 +550,25 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
           <p className="text-gray-400 text-base">Joystick доступен только в горизонтальном режиме</p>
         </div>
       </div>
+
+      {/* Device selection modal */}
+      {showDeviceModal && (
+        <BleDeviceListModal
+          onConnected={() => setShowDeviceModal(false)}
+          onCancel={() => setShowDeviceModal(false)}
+          onError={(error) => {
+            setShowDeviceModal(false);
+            console.error('Connection error:', error);
+            appSettings.vibrate([50, 50, 50]);
+          }}
+        />
+      )}
+      </>
     );
   }
 
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-br from-purple-400 to-indigo-600 flex flex-col select-none" style={{ touchAction: 'none', overscrollBehavior: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}>
       {/* Верхний бар - очень компактный для мобилки */}
       <div className="bg-white/10 backdrop-blur-sm pt-12 px-1 pb-1 sm:px-2 sm:py-1.5 shadow-lg">
@@ -924,5 +949,19 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
         <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="h-12 sm:h-16 opacity-30" />
       </div>
     </div>
+
+    {/* Device selection modal */}
+    {showDeviceModal && (
+      <BleDeviceListModal
+        onConnected={() => setShowDeviceModal(false)}
+        onCancel={() => setShowDeviceModal(false)}
+        onError={(error) => {
+          setShowDeviceModal(false);
+          console.error('Connection error:', error);
+          appSettings.vibrate([50, 50, 50]);
+        }}
+      />
+    )}
+    </>
   );
 };
