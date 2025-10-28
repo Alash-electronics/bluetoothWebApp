@@ -32,6 +32,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   const [isLandscape, setIsLandscape] = useState(false);
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+  const [autoScroll, setAutoScroll] = useState(true);
 
   // Отслеживание ориентации и высоты viewport
   useEffect(() => {
@@ -59,43 +60,32 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
     };
   }, []);
 
-  // Блокируем скролл body/html (только для веб, не Capacitor)
+  // Блокируем скролл body/html
   useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalDocOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
     if (Capacitor.isNativePlatform()) {
-      // Для Capacitor используем другой подход
-      document.documentElement.style.overflow = 'hidden';
       document.documentElement.style.height = '100%';
-      document.body.style.overflow = 'hidden';
       document.body.style.height = '100%';
       document.body.style.margin = '0';
       document.body.style.padding = '0';
+    }
 
-      return () => {
-        document.documentElement.style.overflow = '';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.documentElement.style.overflow = originalDocOverflow;
+
+      if (Capacitor.isNativePlatform()) {
         document.documentElement.style.height = '';
-        document.body.style.overflow = '';
         document.body.style.height = '';
         document.body.style.margin = '';
         document.body.style.padding = '';
-      };
-    } else {
-      // Для веб-версии
-      const originalOverflow = document.body.style.overflow;
-      const originalPosition = document.body.style.position;
-      const originalHeight = document.body.style.height;
-
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.height = '100%';
-      document.body.style.width = '100%';
-
-      return () => {
-        document.body.style.overflow = originalOverflow;
-        document.body.style.position = originalPosition;
-        document.body.style.height = originalHeight;
-        document.body.style.width = '';
-      };
-    }
+      }
+    };
   }, []);
 
   const addLog = (message: string, type: LogEntry['type']) => {
@@ -133,10 +123,12 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Отключаем автоскролл - пользователь может скроллить сам
-  // useEffect(() => {
-  //   logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  // }, [logs]);
+  // Автоскролл к концу логов
+  useEffect(() => {
+    if (autoScroll) {
+      logsEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    }
+  }, [logs, autoScroll]);
 
   const handleSend = async () => {
     if (!inputValue.trim() || !isConnected) return;
@@ -235,7 +227,13 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
           </svg>
           <h2 className="text-white text-2xl font-bold mb-3">Поверните устройство</h2>
-          <p className="text-gray-400 text-base">Terminal доступен только в вертикальном режиме</p>
+          <p className="text-gray-400 text-base mb-6">Terminal доступен только в вертикальном режиме</p>
+          <button
+            onClick={handleBackClick}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition"
+          >
+            Вернуться на главную
+          </button>
         </div>
       </div>
     );
@@ -247,8 +245,8 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
         className="bg-gray-900 flex flex-col select-none overflow-hidden"
         style={
           Capacitor.isNativePlatform()
-            ? { height: '100vh', width: '100vw', position: 'relative' }
-            : { height: `${viewportHeight}px`, width: '100vw', position: 'fixed', top: 0, left: 0 }
+            ? { height: `${viewportHeight}px`, width: '100vw', position: 'absolute', top: 0, left: 0 }
+            : { height: '100vh', width: '100vw' }
         }
       >
       {/* Верхний бар - синий */}
@@ -325,9 +323,24 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
             <button
               onClick={handleClearLogs}
               className="text-white hover:bg-blue-700 p-1 landscape:p-0 sm:p-2 sm:landscape:p-2 rounded transition"
+              title="Очистить терминал"
             >
               <svg className="w-4 h-4 landscape:w-2 landscape:h-2 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+
+            {/* Автоскролл */}
+            <button
+              onClick={() => {
+                appSettings.vibrate(30);
+                setAutoScroll(!autoScroll);
+              }}
+              className={`text-white hover:bg-blue-700 p-1 landscape:p-0 sm:p-2 sm:landscape:p-2 rounded transition ${autoScroll ? '' : 'opacity-50'}`}
+              title={autoScroll ? 'Автоскролл включен' : 'Автоскролл выключен'}
+            >
+              <svg className="w-4 h-4 landscape:w-2 landscape:h-2 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
               </svg>
             </button>
 
@@ -335,6 +348,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
             <button
               onClick={handleSettingsClick}
               className="text-white hover:bg-blue-700 p-1 landscape:p-0 sm:p-2 sm:landscape:p-2 rounded transition"
+              title="Настройки"
             >
               <svg className="w-4 h-4 landscape:w-2 landscape:h-2 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />

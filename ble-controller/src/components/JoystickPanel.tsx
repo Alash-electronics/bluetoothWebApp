@@ -547,7 +547,16 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4z M12 16h.01" />
           </svg>
           <h2 className="text-white text-2xl font-bold mb-3">Поверните устройство</h2>
-          <p className="text-gray-400 text-base">Joystick доступен только в горизонтальном режиме</p>
+          <p className="text-gray-400 text-base mb-6">Joystick доступен только в горизонтальном режиме</p>
+          <button
+            onClick={() => {
+              appSettings.vibrate(30);
+              onBack();
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition"
+          >
+            Вернуться на главную
+          </button>
         </div>
       </div>
 
