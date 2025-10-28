@@ -381,9 +381,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
 
   return (
     <>
-    <div className="min-h-screen bg-gradient-to-br from-cyan-300 to-blue-400 flex flex-col overflow-hidden select-none">
+    <div className="h-screen bg-gradient-to-br from-cyan-300 to-blue-400 flex flex-col overflow-hidden select-none">
       {/* Верхний бар */}
-      <div className="relative flex items-center justify-between pt-12 px-2 pb-2 sm:p-4">
+      <div className="relative flex items-center justify-between pt-2 px-2 pb-1 sm:pt-3 sm:px-4 sm:pb-2">
         {/* Кнопка назад */}
         <button
           onClick={handleBackClick}
@@ -477,12 +477,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
       </div>
 
       {/* Основная область с кнопками */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-8 pb-0 sm:pb-20" style={{ marginBottom: '-70px' }}>
-        <div className="w-full max-w-6xl grid grid-cols-3 gap-4 sm:gap-8 items-center justify-items-center">
+      <div className="flex-1 flex items-center justify-center px-2 py-2 overflow-hidden">
+        <div className="w-full h-full max-w-6xl grid grid-cols-3 gap-2 sm:gap-4 items-center justify-items-center">
 
           {/* Левая часть - Цветные кнопки WASD */}
-          <div className="flex justify-center">
-            <div className="relative w-64 h-64">
+          <div className="flex justify-center items-center h-full">
+            <div className="relative w-48 h-48 sm:w-56 sm:h-56">
               {/* W - желтая сверху */}
               <button
                 onMouseDown={() => { const cfg = getButtonConfig('w'); if (cfg) { setPressedButton('w'); handleButtonPress(cfg.pressCommand); } }}
@@ -491,7 +491,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
                 onTouchStart={() => { const cfg = getButtonConfig('w'); if (cfg) { setPressedButton('w'); handleButtonPress(cfg.pressCommand); } }}
                 onTouchEnd={() => { const cfg = getButtonConfig('w'); if (cfg) { setPressedButton(null); handleButtonRelease(cfg.releaseCommand); } }}
                 disabled={!isConnected}
-                className={`absolute top-0 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full bg-black text-yellow-400 font-bold text-4xl transition-all duration-150 ${
+                className={`absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-black text-yellow-400 font-bold text-2xl sm:text-3xl transition-all duration-150 ${
                   pressedButton === 'w' ? 'scale-90 bg-gray-800' : 'hover:scale-105'
                 } disabled:opacity-30`}
               >
@@ -506,7 +506,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
                 onTouchStart={() => { const cfg = getButtonConfig('a'); if (cfg) { setPressedButton('a'); handleButtonPress(cfg.pressCommand); } }}
                 onTouchEnd={() => { const cfg = getButtonConfig('a'); if (cfg) { setPressedButton(null); handleButtonRelease(cfg.releaseCommand); } }}
                 disabled={!isConnected}
-                className={`absolute top-1/2 left-0 -translate-y-1/2 w-20 h-20 rounded-full bg-black text-cyan-400 font-bold text-4xl transition-all duration-150 ${
+                className={`absolute top-1/2 left-0 -translate-y-1/2 w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-black text-cyan-400 font-bold text-2xl sm:text-3xl transition-all duration-150 ${
                   pressedButton === 'a' ? 'scale-90 bg-gray-800' : 'hover:scale-105'
                 } disabled:opacity-30`}
               >
@@ -521,7 +521,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
                 onTouchStart={() => { const cfg = getButtonConfig('d'); if (cfg) { setPressedButton('d'); handleButtonPress(cfg.pressCommand); } }}
                 onTouchEnd={() => { const cfg = getButtonConfig('d'); if (cfg) { setPressedButton(null); handleButtonRelease(cfg.releaseCommand); } }}
                 disabled={!isConnected}
-                className={`absolute top-1/2 right-0 -translate-y-1/2 w-20 h-20 rounded-full bg-black text-red-500 font-bold text-4xl transition-all duration-150 ${
+                className={`absolute top-1/2 right-0 -translate-y-1/2 w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-black text-red-500 font-bold text-2xl sm:text-3xl transition-all duration-150 ${
                   pressedButton === 'd' ? 'scale-90 bg-gray-800' : 'hover:scale-105'
                 } disabled:opacity-30`}
               >
@@ -536,7 +536,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
                 onTouchStart={() => { const cfg = getButtonConfig('s'); if (cfg) { setPressedButton('s'); handleButtonPress(cfg.pressCommand); } }}
                 onTouchEnd={() => { const cfg = getButtonConfig('s'); if (cfg) { setPressedButton(null); handleButtonRelease(cfg.releaseCommand); } }}
                 disabled={!isConnected}
-                className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full bg-black text-green-400 font-bold text-4xl transition-all duration-150 ${
+                className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-black text-green-400 font-bold text-2xl sm:text-3xl transition-all duration-150 ${
                   pressedButton === 's' ? 'scale-90 bg-gray-800' : 'hover:scale-105'
                 } disabled:opacity-30`}
               >
@@ -546,8 +546,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
           </div>
 
           {/* Центральная часть - Кнопки 1, 2, 3 */}
-          <div className="flex flex-col items-center gap-8">
-            <div className="flex gap-4">
+          <div className="flex flex-col items-center gap-3 sm:gap-5">
+            <div className="flex gap-2 sm:gap-3">
               <button
                 onMouseDown={() => { const cfg = getButtonConfig('btn1'); if (cfg) { setPressedButton('btn1'); handleButtonPress(cfg.pressCommand); } }}
                 onMouseUp={() => { const cfg = getButtonConfig('btn1'); if (cfg) { setPressedButton(null); handleButtonRelease(cfg.releaseCommand); } }}
@@ -555,7 +555,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
                 onTouchStart={() => { const cfg = getButtonConfig('btn1'); if (cfg) { setPressedButton('btn1'); handleButtonPress(cfg.pressCommand); } }}
                 onTouchEnd={() => { const cfg = getButtonConfig('btn1'); if (cfg) { setPressedButton(null); handleButtonRelease(cfg.releaseCommand); } }}
                 disabled={!isConnected}
-                className={`w-20 h-20 rounded-full bg-black text-white font-bold text-3xl transition-all duration-150 ${
+                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black text-white font-bold text-xl sm:text-2xl transition-all duration-150 ${
                   pressedButton === 'btn1' ? 'scale-90 bg-gray-800' : 'hover:scale-105'
                 } disabled:opacity-30`}
               >
@@ -568,7 +568,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
                 onTouchStart={() => { const cfg = getButtonConfig('btn2'); if (cfg) { setPressedButton('btn2'); handleButtonPress(cfg.pressCommand); } }}
                 onTouchEnd={() => { const cfg = getButtonConfig('btn2'); if (cfg) { setPressedButton(null); handleButtonRelease(cfg.releaseCommand); } }}
                 disabled={!isConnected}
-                className={`w-20 h-20 rounded-full bg-black text-white font-bold text-3xl transition-all duration-150 ${
+                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black text-white font-bold text-xl sm:text-2xl transition-all duration-150 ${
                   pressedButton === 'btn2' ? 'scale-90 bg-gray-800' : 'hover:scale-105'
                 } disabled:opacity-30`}
               >
@@ -581,7 +581,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
                 onTouchStart={() => { const cfg = getButtonConfig('btn3'); if (cfg) { setPressedButton('btn3'); handleButtonPress(cfg.pressCommand); } }}
                 onTouchEnd={() => { const cfg = getButtonConfig('btn3'); if (cfg) { setPressedButton(null); handleButtonRelease(cfg.releaseCommand); } }}
                 disabled={!isConnected}
-                className={`w-20 h-20 rounded-full bg-black text-white font-bold text-3xl transition-all duration-150 ${
+                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black text-white font-bold text-xl sm:text-2xl transition-all duration-150 ${
                   pressedButton === 'btn3' ? 'scale-90 bg-gray-800' : 'hover:scale-105'
                 } disabled:opacity-30`}
               >
@@ -591,24 +591,24 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
 
             {/* Поле ввода */}
             <div className="text-center">
-              <div className="text-white text-xl mb-2">Ввод:</div>
-              <div className="bg-white/30 backdrop-blur-sm rounded-lg px-6 py-3 min-w-[100px]">
-                <span className="text-white font-mono text-2xl">{lastCommand || '-'}</span>
+              <div className="text-white text-sm mb-1">Ввод:</div>
+              <div className="bg-white/30 backdrop-blur-sm rounded-lg px-3 py-1 min-w-[60px]">
+                <span className="text-white font-mono text-lg">{lastCommand || '-'}</span>
               </div>
             </div>
 
             {/* Сенсоры */}
             <div className="w-full max-w-xl">
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-1">
                 {sensorConfigs.map((sensor) => (
                   <div
                     key={sensor.id}
-                    className="bg-black/50 backdrop-blur-sm rounded-lg p-2 text-center"
+                    className="bg-black/50 backdrop-blur-sm rounded-lg p-1 text-center"
                   >
-                    <div className="text-white/70 text-xs mb-1 truncate" title={sensor.name}>
+                    <div className="text-white/70 text-[10px] mb-0.5 truncate" title={sensor.name}>
                       {sensor.name}
                     </div>
-                    <div className="text-white font-mono text-lg font-bold">
+                    <div className="text-white font-mono text-sm font-bold">
                       {sensorValues[sensor.id] || '--'}
                     </div>
                   </div>
@@ -617,7 +617,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
             </div>
 
             {/* Макрокнопки */}
-            <div className="grid grid-cols-6 gap-2 w-full max-w-xl">
+            <div className="grid grid-cols-6 gap-1 w-full max-w-xl">
               {['macro1', 'macro2', 'macro3', 'macro4', 'macro5', 'macro6'].map((id) => {
                 const config = getButtonConfig(id);
                 return config ? (
@@ -629,7 +629,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
                     onTouchStart={() => { setPressedButton(id); handleButtonPress(config.pressCommand); }}
                     onTouchEnd={() => { setPressedButton(null); handleButtonRelease(config.releaseCommand); }}
                     disabled={!isConnected}
-                    className={`bg-black hover:bg-gray-800 text-white font-bold py-3 rounded-lg transition-all duration-150 ${
+                    className={`bg-black hover:bg-gray-800 text-white font-bold py-1.5 px-1 text-xs rounded-lg transition-all duration-150 ${
                       pressedButton === id ? 'scale-95 bg-gray-700' : ''
                     } disabled:opacity-30 disabled:cursor-not-allowed`}
                   >

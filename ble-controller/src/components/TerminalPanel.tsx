@@ -31,30 +31,71 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   const logsEndRef = useRef<HTMLDivElement>(null);
   const [isLandscape, setIsLandscape] = useState(false);
   const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
 
-  // Отслеживание ориентации
+  // Отслеживание ориентации и высоты viewport
   useEffect(() => {
-    const checkOrientation = () => {
+    const updateViewport = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const isLandscapeNow = width > height && width < 1024;
-      console.log('Orientation check:', { width, height, isLandscapeNow });
+      console.log('Viewport update:', { width, height, isLandscapeNow });
       setIsLandscape(isLandscapeNow);
+      setViewportHeight(height);
     };
 
-    checkOrientation();
+    updateViewport();
 
-    window.addEventListener('resize', checkOrientation);
-    window.addEventListener('orientationchange', checkOrientation);
+    window.addEventListener('resize', updateViewport);
+    window.addEventListener('orientationchange', updateViewport);
 
     // Также проверяем через небольшой таймаут
-    const timer = setTimeout(checkOrientation, 100);
+    const timer = setTimeout(updateViewport, 100);
 
     return () => {
-      window.removeEventListener('resize', checkOrientation);
-      window.removeEventListener('orientationchange', checkOrientation);
+      window.removeEventListener('resize', updateViewport);
+      window.removeEventListener('orientationchange', updateViewport);
       clearTimeout(timer);
     };
+  }, []);
+
+  // Блокируем скролл body/html (только для веб, не Capacitor)
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      // Для Capacitor используем другой подход
+      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.height = '100%';
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100%';
+      document.body.style.margin = '0';
+      document.body.style.padding = '0';
+
+      return () => {
+        document.documentElement.style.overflow = '';
+        document.documentElement.style.height = '';
+        document.body.style.overflow = '';
+        document.body.style.height = '';
+        document.body.style.margin = '';
+        document.body.style.padding = '';
+      };
+    } else {
+      // Для веб-версии
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      const originalHeight = document.body.style.height;
+
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.height = '100%';
+      document.body.style.width = '100%';
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.position = originalPosition;
+        document.body.style.height = originalHeight;
+        document.body.style.width = '';
+      };
+    }
   }, []);
 
   const addLog = (message: string, type: LogEntry['type']) => {
@@ -92,10 +133,10 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    // Автоскролл к концу логов
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
+  // Отключаем автоскролл - пользователь может скроллить сам
+  // useEffect(() => {
+  //   logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // }, [logs]);
 
   const handleSend = async () => {
     if (!inputValue.trim() || !isConnected) return;
@@ -202,9 +243,16 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
 
   return (
     <>
-      <div className="min-h-screen bg-gray-900 flex flex-col relative select-none">
+      <div
+        className="bg-gray-900 flex flex-col select-none overflow-hidden"
+        style={
+          Capacitor.isNativePlatform()
+            ? { height: '100vh', width: '100vw', position: 'relative' }
+            : { height: `${viewportHeight}px`, width: '100vw', position: 'fixed', top: 0, left: 0 }
+        }
+      >
       {/* Верхний бар - синий */}
-      <div className="bg-blue-600 pt-12 px-2 pb-2 landscape:p-0.5 sm:p-4 sm:landscape:p-4 shadow-lg">
+      <div className="bg-blue-600 pt-12 px-2 pb-2 landscape:p-0.5 sm:p-4 sm:landscape:p-4 shadow-lg flex-shrink-0">
         <div className="flex items-center justify-between">
           {/* Кнопка назад */}
           <button
@@ -298,7 +346,14 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
       </div>
 
       {/* Область логов */}
-      <div className="flex-1 overflow-y-auto p-4 landscape:p-2 sm:p-4 sm:landscape:p-4 bg-gray-800 font-mono text-sm landscape:text-xs sm:text-sm sm:landscape:text-sm">
+      <div
+        className="flex-1 overflow-y-auto p-4 landscape:p-2 sm:p-4 sm:landscape:p-4 bg-gray-800 font-mono text-sm landscape:text-xs sm:text-sm sm:landscape:text-sm"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y',
+          overscrollBehavior: 'contain'
+        }}
+      >
         {logs.length === 0 && (
           <div className="text-gray-500 text-center mt-8 landscape:mt-2 sm:mt-8 sm:landscape:mt-8">No messages yet...</div>
         )}
@@ -312,7 +367,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
       </div>
 
       {/* Кнопки макросов */}
-      <div className="bg-gray-900 p-3 landscape:p-1.5 sm:p-3 sm:landscape:p-3 grid grid-cols-6 gap-2 landscape:gap-1 sm:gap-2 sm:landscape:gap-2">
+      <div className="bg-gray-900 p-3 landscape:p-1.5 sm:p-3 sm:landscape:p-3 grid grid-cols-6 gap-2 landscape:gap-1 sm:gap-2 sm:landscape:gap-2 flex-shrink-0">
         {macros.map((macro) => (
           <button
             key={macro.id}
@@ -326,7 +381,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
       </div>
 
       {/* Поле ввода */}
-      <div className="bg-gray-900 p-4 landscape:p-2 sm:p-4 sm:landscape:p-4 border-t border-gray-700">
+      <div className="bg-gray-900 p-4 landscape:p-2 sm:p-4 sm:landscape:p-4 border-t border-gray-700 flex-shrink-0">
         <div className="flex gap-2 landscape:gap-1 sm:gap-2 sm:landscape:gap-2">
           <input
             type="text"

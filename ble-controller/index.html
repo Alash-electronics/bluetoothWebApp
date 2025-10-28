@@ -46,9 +46,10 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration (only for web, not Capacitor) -->
     <script>
-      if ('serviceWorker' in navigator) {
+      // Only register service worker for web builds, not Capacitor
+      if ('serviceWorker' in navigator && !window.Capacitor) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/bluetoothWebApp/sw.js')
             .then((registration) => {
