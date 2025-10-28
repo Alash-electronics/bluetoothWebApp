@@ -65,25 +65,34 @@ export const SmartHomeRoomControl: React.FC<SmartHomeRoomControlProps> = ({
 
     // Подписываемся на получение данных от датчиков
     bluetoothService.onDataReceived((data) => {
-      const message = data.trim().toUpperCase();
+      const message = data.trim();  // Не используем toUpperCase() - настройки чувствительны к регистру
 
-      // Обработка данных датчиков в формате "SENSOR:1" или "SENSOR:0"
-      if (message.includes('MOTION:1') || message.includes('MOTION_ON')) {
-        setMotionDetected(true);
-      } else if (message.includes('MOTION:0') || message.includes('MOTION_OFF')) {
-        setMotionDetected(false);
+      // Проверяем каждый датчик по его конфигурации из настроек
+      const motionConfig = sensorConfigs.find(s => s.id === 'motion');
+      if (motionConfig) {
+        if (message.includes(motionConfig.onMessage)) {
+          setMotionDetected(true);
+        } else if (message.includes(motionConfig.offMessage)) {
+          setMotionDetected(false);
+        }
       }
 
-      if (message.includes('GAS:1') || message.includes('GAS_ON')) {
-        setGasDetected(true);
-      } else if (message.includes('GAS:0') || message.includes('GAS_OFF')) {
-        setGasDetected(false);
+      const gasConfig = sensorConfigs.find(s => s.id === 'gas');
+      if (gasConfig) {
+        if (message.includes(gasConfig.onMessage)) {
+          setGasDetected(true);
+        } else if (message.includes(gasConfig.offMessage)) {
+          setGasDetected(false);
+        }
       }
 
-      if (message.includes('RAIN:1') || message.includes('RAIN_ON')) {
-        setRainDetected(true);
-      } else if (message.includes('RAIN:0') || message.includes('RAIN_OFF')) {
-        setRainDetected(false);
+      const rainConfig = sensorConfigs.find(s => s.id === 'rain');
+      if (rainConfig) {
+        if (message.includes(rainConfig.onMessage)) {
+          setRainDetected(true);
+        } else if (message.includes(rainConfig.offMessage)) {
+          setRainDetected(false);
+        }
       }
     });
 

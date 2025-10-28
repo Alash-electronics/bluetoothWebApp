@@ -289,9 +289,10 @@ void checkSensors() {
   bool motion = digitalRead(MOTION_PIN);
   if (motion != lastMotion && deviceConnected) {
     lastMotion = motion;
-    String msg = motion ? "MOTION:1" : "MOTION:0";
+    String msg = motion ? "P" : "p";  // P = motion detected, p = no motion
     pTxCharacteristic->setValue(msg.c_str());
     pTxCharacteristic->notify();
+    Serial.print("Motion: ");
     Serial.println(msg);
   }
 
@@ -299,9 +300,10 @@ void checkSensors() {
   bool gas = digitalRead(GAS_PIN);
   if (gas != lastGas && deviceConnected) {
     lastGas = gas;
-    String msg = gas ? "GAS:1" : "GAS:0";
+    String msg = gas ? "G" : "g";  // G = gas detected, g = no gas
     pTxCharacteristic->setValue(msg.c_str());
     pTxCharacteristic->notify();
+    Serial.print("Gas: ");
     Serial.println(msg);
   }
 
@@ -309,9 +311,10 @@ void checkSensors() {
   bool rain = digitalRead(RAIN_PIN);
   if (rain != lastRain && deviceConnected) {
     lastRain = rain;
-    String msg = rain ? "RAIN:1" : "RAIN:0";
+    String msg = rain ? "R" : "r";  // R = rain detected, r = no rain
     pTxCharacteristic->setValue(msg.c_str());
     pTxCharacteristic->notify();
+    Serial.print("Rain: ");
     Serial.println(msg);
   }
 }
