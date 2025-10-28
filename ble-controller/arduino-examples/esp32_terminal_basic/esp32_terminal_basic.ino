@@ -19,6 +19,9 @@
 #define SERVICE_UUID           "0000ffe0-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID_TX "0000ffe1-0000-1000-8000-00805f9b34fb"
 
+// LED пин (GPIO 2 для большинства ESP32 плат, измените если у вас другой)
+#define LED_PIN 2
+
 BLEServer *pServer = NULL;
 BLECharacteristic *pTxCharacteristic;
 bool deviceConnected = false;
@@ -28,13 +31,13 @@ class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
       Serial.println("Client Connected");
-      digitalWrite(LED_BUILTIN, HIGH);
+      digitalWrite(LED_PIN, HIGH);
     };
 
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
       Serial.println("Client Disconnected");
-      digitalWrite(LED_BUILTIN, LOW);
+      digitalWrite(LED_PIN, LOW);
     }
 };
 
@@ -55,7 +58,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 
 void setup() {
   Serial.begin(115200);
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
 
   Serial.println("ESP32 BLE Terminal Starting...");
 
@@ -118,22 +121,22 @@ void handleCommand(char cmd) {
   switch(cmd) {
     case '1':
       // Turn on LED
-      digitalWrite(LED_BUILTIN, HIGH);
+      digitalWrite(LED_PIN, HIGH);
       response = "LED ON";
       break;
 
     case '2':
       // Turn off LED
-      digitalWrite(LED_BUILTIN, LOW);
+      digitalWrite(LED_PIN, LOW);
       response = "LED OFF";
       break;
 
     case '3':
       // Blink LED
       for(int i = 0; i < 5; i++) {
-        digitalWrite(LED_BUILTIN, HIGH);
+        digitalWrite(LED_PIN, HIGH);
         delay(100);
-        digitalWrite(LED_BUILTIN, LOW);
+        digitalWrite(LED_PIN, LOW);
         delay(100);
       }
       response = "BLINK DONE";

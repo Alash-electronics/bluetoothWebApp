@@ -38,6 +38,9 @@
 // Motor speed (0-255)
 int motorSpeed = 200;
 
+// LED pin (GPIO 2 for most ESP32 boards)
+#define LED_PIN 2
+
 // UUIDs for HM-10 compatible UART service
 #define SERVICE_UUID           "0000ffe0-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID_TX "0000ffe1-0000-1000-8000-00805f9b34fb"
@@ -50,14 +53,14 @@ class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
       Serial.println("Client Connected");
-      digitalWrite(LED_BUILTIN, HIGH);
+      digitalWrite(LED_PIN, HIGH);
     };
 
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
       Serial.println("Client Disconnected");
       stopMotors();
-      digitalWrite(LED_BUILTIN, LOW);
+      digitalWrite(LED_PIN, LOW);
     }
 };
 
@@ -82,7 +85,7 @@ void setup() {
   pinMode(MOTOR_A_IN2, OUTPUT);
   pinMode(MOTOR_B_IN3, OUTPUT);
   pinMode(MOTOR_B_IN4, OUTPUT);
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
 
   // Setup PWM
   ledcSetup(PWM_CHANNEL_A, PWM_FREQ, PWM_RESOLUTION);
@@ -173,11 +176,11 @@ void handleCommand(char cmd) {
 
     // LED control
     case 'L':  // LED on
-      digitalWrite(LED_BUILTIN, HIGH);
+      digitalWrite(LED_PIN, HIGH);
       break;
 
     case 'l':  // LED off
-      digitalWrite(LED_BUILTIN, LOW);
+      digitalWrite(LED_PIN, LOW);
       break;
 
     default:
