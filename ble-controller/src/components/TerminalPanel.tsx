@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { appSettings } from '../services/appSettings';
 import { macroSettings, type MacroConfig } from '../services/macroSettings';
+import { Capacitor } from '@capacitor/core';
+import { BleDeviceListModal } from './BleDeviceListModal';
 
 interface TerminalPanelProps {
   connectionStatus: ConnectionStatus;
@@ -28,6 +30,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   const [macros, setMacros] = useState<MacroConfig[]>([]);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
 
   // Отслеживание ориентации
   useEffect(() => {
@@ -157,13 +160,19 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
       }
     } else {
       // Если не подключено - предлагаем подключиться
-      try {
-        const device = await bluetoothService.connect();
-        addLog(`Connecting to ${device.name}...`, 'status');
-      } catch (error) {
-        console.error('Connection error:', error);
-        addLog('Connection failed', 'error');
-        appSettings.vibrate([50, 50, 50]);
+      if (Capacitor.isNativePlatform()) {
+        // На iOS/Android показываем кастомный список устройств
+        setShowDeviceModal(true);
+      } else {
+        // В браузере используем системный диалог
+        try {
+          const device = await bluetoothService.connect();
+          addLog(`Connecting to ${device.name}...`, 'status');
+        } catch (error) {
+          console.error('Connection error:', error);
+          addLog('Connection failed', 'error');
+          appSettings.vibrate([50, 50, 50]);
+        }
       }
     }
   };
@@ -345,6 +354,22 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
         </div>
       </div>
     </div>
+
+    {/* Device selection modal */}
+    {showDeviceModal && (
+      <BleDeviceListModal
+        onConnected={() => {
+          setShowDeviceModal(false);
+          addLog('Connected', 'status');
+        }}
+        onCancel={() => setShowDeviceModal(false)}
+        onError={(error) => {
+          setShowDeviceModal(false);
+          addLog(`Connection error: ${error}`, 'error');
+          appSettings.vibrate([50, 50, 50]);
+        }}
+      />
+    )}
     </>
   );
 };

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { appSettings } from '../services/appSettings';
 import { controlPanelSettings, type ControlButtonConfig } from '../services/controlPanelSettings';
+import { Capacitor } from '@capacitor/core';
+import { BleDeviceListModal } from './BleDeviceListModal';
 
 interface ControlPanelProps {
   connectionStatus: ConnectionStatus;
@@ -18,6 +20,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
   const [buttonConfigs, setButtonConfigs] = useState<ControlButtonConfig[]>([]);
   const [gamepadButtonStates, setGamepadButtonStates] = useState<boolean[]>(new Array(20).fill(false));
   const [isPortrait, setIsPortrait] = useState(false);
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
 
   // Отслеживание ориентации - блокировка вертикального режима
   useEffect(() => {
@@ -281,11 +284,17 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
       }
     } else {
       // Если не подключено - предлагаем подключиться
-      try {
-        await bluetoothService.connect();
-      } catch (error) {
-        console.error('Connection error:', error);
-        appSettings.vibrate([50, 50, 50]);
+      if (Capacitor.isNativePlatform()) {
+        // На iOS/Android показываем кастомный список устройств
+        setShowDeviceModal(true);
+      } else {
+        // В браузере используем системный диалог
+        try {
+          await bluetoothService.connect();
+        } catch (error) {
+          console.error('Connection error:', error);
+          appSettings.vibrate([50, 50, 50]);
+        }
       }
     }
   };
@@ -293,6 +302,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
 
   if (isPortrait) {
     return (
+      <>
       <div className="fixed inset-0 bg-gray-900 z-[9999] flex items-center justify-center p-4 select-none">
         <div className="text-center">
           <svg className="w-20 h-20 text-cyan-400 mx-auto mb-6 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -302,10 +312,25 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
           <p className="text-gray-400 text-base">Control Panel доступен только в горизонтальном режиме</p>
         </div>
       </div>
+
+      {/* Device selection modal */}
+      {showDeviceModal && (
+        <BleDeviceListModal
+          onConnected={() => setShowDeviceModal(false)}
+          onCancel={() => setShowDeviceModal(false)}
+          onError={(error) => {
+            setShowDeviceModal(false);
+            console.error('Connection error:', error);
+            appSettings.vibrate([50, 50, 50]);
+          }}
+        />
+      )}
+      </>
     );
   }
 
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-br from-cyan-300 to-blue-400 flex flex-col overflow-hidden select-none">
       {/* Верхний бар */}
       <div className="relative flex items-center justify-between pt-12 px-2 pb-2 sm:p-4">
@@ -613,5 +638,19 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
         </div>
       </div>
     </div>
+
+    {/* Device selection modal */}
+    {showDeviceModal && (
+      <BleDeviceListModal
+        onConnected={() => setShowDeviceModal(false)}
+        onCancel={() => setShowDeviceModal(false)}
+        onError={(error) => {
+          setShowDeviceModal(false);
+          console.error('Connection error:', error);
+          appSettings.vibrate([50, 50, 50]);
+        }}
+      />
+    )}
+    </>
   );
 };
