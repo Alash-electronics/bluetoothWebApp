@@ -20,6 +20,7 @@ interface Translations {
   // Подключение
   connect: string;
   disconnect: string;
+  disconnectConfirm: string;
   connecting: string;
   connected: string;
   disconnected: string;
@@ -75,6 +76,7 @@ const translations: Record<Language, Translations> = {
 
     connect: 'Подключиться',
     disconnect: 'Отключиться',
+    disconnectConfirm: 'Отключиться от устройства?',
     connecting: 'Подключение...',
     connected: 'Подключен',
     disconnected: 'Отключен',
@@ -125,6 +127,7 @@ const translations: Record<Language, Translations> = {
 
     connect: 'Connect',
     disconnect: 'Disconnect',
+    disconnectConfirm: 'Disconnect from device?',
     connecting: 'Connecting...',
     connected: 'Connected',
     disconnected: 'Disconnected',
@@ -175,6 +178,7 @@ const translations: Record<Language, Translations> = {
 
     connect: 'Қосылу',
     disconnect: 'Ажырату',
+    disconnectConfirm: 'Құрылғыдан ажырату ма?',
     connecting: 'Қосылуда...',
     connected: 'Қосылған',
     disconnected: 'Ажыратылған',

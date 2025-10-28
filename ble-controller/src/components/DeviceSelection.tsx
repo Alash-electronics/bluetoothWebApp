@@ -57,7 +57,23 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
   };
 
   const handleConnect = async () => {
-    await connectToDevice();
+    // Если уже подключено - просто отключаемся
+    if (bluetoothService.isConnected()) {
+      if (confirm(localization.t('disconnectConfirm'))) {
+        appSettings.vibrate(30);
+        try {
+          await bluetoothService.disconnect();
+          onConnectionChange('disconnected');
+          appSettings.vibrate(100);
+        } catch (error) {
+          console.error('Disconnect error:', error);
+          appSettings.vibrate([50, 50, 50]);
+        }
+      }
+    } else {
+      // Если не подключено - показываем диалог подключения
+      await connectToDevice();
+    }
   };
 
   // Callbacks для BleDeviceListModal
