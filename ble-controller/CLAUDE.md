@@ -36,8 +36,10 @@ npm run deploy
 
 - **React 19** with TypeScript and strict mode
 - **Vite 7** for build tooling and HMR
+- **Capacitor 7.4.4** for native iOS/Android deployment
+- **@capacitor-community/bluetooth-le 7.2.0** for native BLE on mobile
 - **Tailwind CSS 3** for styling
-- **Web Bluetooth API** for BLE communication
+- **Web Bluetooth API** for BLE communication (web only)
 - **localStorage** for persistent settings storage
 
 ## Architecture
@@ -276,7 +278,17 @@ useEffect(() => {
 if (isLandscape) {
   return (
     <div className="fixed inset-0 bg-gray-900 z-[9999] flex items-center justify-center p-4 select-none">
-      {/* Rotation overlay UI */}
+      {/* Rotation overlay UI with back button */}
+      <div className="text-center">
+        <svg className="w-20 h-20 text-cyan-400 mx-auto mb-6 animate-bounce">
+          {/* Rotation icon */}
+        </svg>
+        <h2 className="text-white text-2xl font-bold mb-3">Поверните устройство</h2>
+        <p className="text-gray-400 text-base mb-6">Terminal доступен только в вертикальном режиме</p>
+        <button onClick={onBack} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition">
+          Вернуться на главную
+        </button>
+      </div>
     </div>
   );
 }
@@ -287,6 +299,7 @@ if (isLandscape) {
 - Must use both `resize` and `orientationchange` events
 - Add 100ms timeout for Safari compatibility
 - Use z-[9999] to ensure overlay is always on top
+- **Always include a "Back to Home" button** on rotation overlays so users can exit without rotating device
 
 ### Connection Status Display
 
@@ -310,6 +323,50 @@ SettingsPanel is a full-screen modal overlay that appears over any view:
 - Settings auto-save on change via onChange handlers - no "Save" button needed
 - Smart home settings include device names, sensor names, and single-character commands
 - Input validation enforces constraints (e.g., maxLength={1} for command inputs)
+
+### Viewport and Scrolling on Mobile
+
+Components that should NOT scroll (ControlPanel, JoystickPanel, TerminalPanel) use specific patterns:
+
+**For Capacitor (iOS/Android):**
+```typescript
+const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+
+useEffect(() => {
+  const updateViewport = () => {
+    setViewportHeight(window.innerHeight);
+  };
+
+  updateViewport();
+  window.addEventListener('resize', updateViewport);
+  window.addEventListener('orientationchange', updateViewport);
+
+  return () => {
+    window.removeEventListener('resize', updateViewport);
+    window.removeEventListener('orientationchange', updateViewport);
+  };
+}, []);
+
+// Container style
+<div style={
+  Capacitor.isNativePlatform()
+    ? { height: `${viewportHeight}px`, width: '100vw', position: 'absolute', top: 0, left: 0 }
+    : { height: '100vh', width: '100vw' }
+}>
+```
+
+**Key Points:**
+- JavaScript-calculated height is required for Capacitor (not CSS `100vh`)
+- Use `position: absolute` on Capacitor, not `fixed`
+- Update viewport height on `resize` and `orientationchange` events
+- Set `overflow: hidden` on `document.body` and `document.documentElement` to prevent page scrolling
+- Use `flex-shrink-0` on header/footer sections to prevent them from shrinking
+- Use `flex-1` with `overflow-y-auto` on scrollable content areas (like TerminalPanel logs)
+
+**TerminalPanel Auto-scroll:**
+- Uses `scrollIntoView({ behavior: 'auto' })` for instant scrolling (not 'smooth')
+- Has toggle button to enable/disable auto-scroll
+- Auto-scroll state managed with `useState` and checked before scrolling
 
 ## Critical Implementation Notes
 
@@ -421,6 +478,8 @@ ble-controller/
 
 ## Deployment
 
+### Web Deployment (GitHub Pages)
+
 The project deploys to GitHub Pages via the `gh-pages` package:
 
 ```bash
@@ -435,6 +494,68 @@ This command:
 **Configuration:**
 - Base path is set to `/bluetoothWebApp/` in `vite.config.ts`
 - Update `base` in `vite.config.ts` if deploying to a different subdirectory
+
+### Mobile Deployment (iOS/Android)
+
+The app uses **Capacitor** to deploy as native iOS and Android applications.
+
+**Capacitor Configuration:**
+- App ID: `com.alashelectronics.blecontroller`
+- App Name: `Alashed BLE`
+- Web directory: `dist`
+
+**Build Commands:**
+
+```bash
+# 1. Build web assets for Capacitor (uses base: '/')
+CAPACITOR=true npm run build
+
+# 2. Sync with native platforms
+npx cap sync              # Sync both iOS and Android
+npx cap sync ios          # Sync iOS only
+npx cap sync android      # Sync Android only
+
+# 3. Open in native IDEs
+npx cap open ios          # Opens Xcode
+npx cap open android      # Opens Android Studio
+```
+
+**Android APK Build:**
+
+```bash
+# Requires Java 21 and Android SDK
+cd android
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21
+export PATH="$JAVA_HOME/bin:$PATH"
+./gradlew assembleDebug
+
+# APK location: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+**iOS Build:**
+
+1. Open project: `npx cap open ios`
+2. In Xcode: Product → Clean Build Folder (⇧⌘K)
+3. Build: Product → Build (⌘B)
+4. Connect iPhone via USB and run: Product → Run (⌘R)
+
+**Important Build Notes:**
+- Use `CAPACITOR=true` environment variable when building for mobile to set correct base path
+- Service Worker is automatically disabled on Capacitor (checks `window.Capacitor`)
+- Always run `npx cap sync` after building web assets to update native projects
+- Android requires Java 21 (not 17)
+- Version numbers are in `android/app/build.gradle` (versionCode and versionName)
+
+**App Icons:**
+- **iOS icons:** `ios/App/App/Assets.xcassets/AppIcon.appiconset/` (15 sizes from 20pt to 1024pt with @1x, @2x, @3x variants)
+- **Android icons:** `android/app/src/main/res/mipmap-*dpi/` (ic_launcher.png, ic_launcher_round.png, ic_launcher_foreground.png in 5 densities: mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi)
+- Source icons: `ios/App/App/Assets.xcassets/AppIcon.appiconset/Ios.png` (iOS) and `Android.png` (Android)
+- Web icons: `public/icon-192.png`, `public/icon-512.png`, `public/favicon.png`
+
+**Permissions:**
+- Android Bluetooth permissions are in `android/app/src/main/AndroidManifest.xml`
+- Required: BLUETOOTH_SCAN, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION
+- iOS permissions are auto-handled by Capacitor Bluetooth LE plugin
 
 ## Arduino Examples
 
