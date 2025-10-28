@@ -1,5 +1,5 @@
 /*
- * ESP32 BLE RC Car Control Example
+ * ESP32 BLE RC Car Control Example with Sensors
  *
  * This sketch demonstrates motor control using ESP32's built-in BLE.
  * Compatible with the Control Panel mode in Alashed BLE app.
@@ -9,6 +9,7 @@
  * - Arrow keys (right joystick) - U/L/R/B
  * - 3 action buttons with feedback
  * - LED status indicator
+ * - Sensor data transmission (ultrasonic + line sensors)
  *
  * Commands:
  * - W/w: Forward / Stop
@@ -21,6 +22,12 @@
  * - 2: Horn (blink LED 3x)
  * - 3: Emergency stop
  *
+ * Sensor Data Format (sent every 100ms):
+ * - S1:<distance> - Ultrasonic distance in cm (0-400)
+ * - S2:<value> - Line sensor left (0-4095)
+ * - S3:<value> - Line sensor center (0-4095)
+ * - S4:<value> - Line sensor right (0-4095)
+ *
  * Hardware connections:
  * L298N Motor Driver:
  *   IN1 -> GPIO 16
@@ -29,6 +36,13 @@
  *   IN4 -> GPIO 19
  *   ENA -> GPIO 25 (PWM for motor A speed)
  *   ENB -> GPIO 26 (PWM for motor B speed)
+ *
+ * Sensors:
+ *   Ultrasonic TRIG -> GPIO 27
+ *   Ultrasonic ECHO -> GPIO 14
+ *   Line Sensor Left -> GPIO 34 (analog)
+ *   Line Sensor Center -> GPIO 35 (analog)
+ *   Line Sensor Right -> GPIO 32 (analog)
  *
  * LED: GPIO 2 (built-in)
  */
@@ -58,6 +72,17 @@ int motorSpeed = 200;
 // LED pin (GPIO 2 for most ESP32 boards)
 #define LED_PIN 2
 
+// Sensor pins
+#define ULTRASONIC_TRIG 27
+#define ULTRASONIC_ECHO 14
+#define LINE_SENSOR_LEFT 34    // Analog input
+#define LINE_SENSOR_CENTER 35  // Analog input
+#define LINE_SENSOR_RIGHT 32   // Analog input
+
+// Sensor data timing
+unsigned long lastSensorSend = 0;
+#define SENSOR_SEND_INTERVAL 100  // Send sensor data every 100ms
+
 // UUIDs for HM-10 compatible UART service
 #define SERVICE_UUID           "0000ffe0-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID_TX "0000ffe1-0000-1000-8000-00805f9b34fb"
@@ -74,6 +99,9 @@ void moveBackward();
 void turnLeft();
 void turnRight();
 void blinkLED(int times);
+void sendSensorData();
+float getUltrasonicDistance();
+int readLineSensor(int pin);
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
@@ -112,6 +140,13 @@ void setup() {
   pinMode(MOTOR_B_IN3, OUTPUT);
   pinMode(MOTOR_B_IN4, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
+
+  // Setup sensor pins
+  pinMode(ULTRASONIC_TRIG, OUTPUT);
+  pinMode(ULTRASONIC_ECHO, INPUT);
+  pinMode(LINE_SENSOR_LEFT, INPUT);
+  pinMode(LINE_SENSOR_CENTER, INPUT);
+  pinMode(LINE_SENSOR_RIGHT, INPUT);
 
   // Setup PWM (ESP32 Arduino 3.x API)
   ledcAttach(MOTOR_A_EN, PWM_FREQ, PWM_RESOLUTION);
@@ -157,6 +192,8 @@ void setup() {
 }
 
 void loop() {
+  // Send sensor data periodically
+  sendSensorData();
   delay(10);
 }
 
@@ -322,5 +359,75 @@ void blinkLED(int times) {
     delay(100);
     digitalWrite(LED_PIN, LOW);
     delay(100);
+  }
+}
+
+// Get ultrasonic distance in cm
+float getUltrasonicDistance() {
+  digitalWrite(ULTRASONIC_TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(ULTRASONIC_TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(ULTRASONIC_TRIG, LOW);
+
+  long duration = pulseIn(ULTRASONIC_ECHO, HIGH, 30000); // 30ms timeout
+  if (duration == 0) {
+    return 999; // No echo received
+  }
+
+  float distance = duration * 0.034 / 2; // Speed of sound = 340 m/s
+  return distance;
+}
+
+// Read line sensor (returns 0-4095 on ESP32)
+int readLineSensor(int pin) {
+  return analogRead(pin);
+}
+
+// Send sensor data via BLE
+void sendSensorData() {
+  if (!deviceConnected) return;
+
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastSensorSend >= SENSOR_SEND_INTERVAL) {
+    lastSensorSend = currentMillis;
+
+    // Read all sensors
+    float distance = getUltrasonicDistance();
+    int lineLeft = readLineSensor(LINE_SENSOR_LEFT);
+    int lineCenter = readLineSensor(LINE_SENSOR_CENTER);
+    int lineRight = readLineSensor(LINE_SENSOR_RIGHT);
+
+    // Send sensor 1: Ultrasonic distance (cm)
+    String s1 = "S1:" + String((int)distance);
+    pTxCharacteristic->setValue(s1.c_str());
+    pTxCharacteristic->notify();
+    delay(10);
+
+    // Send sensor 2: Line sensor left (analog value)
+    String s2 = "S2:" + String(lineLeft);
+    pTxCharacteristic->setValue(s2.c_str());
+    pTxCharacteristic->notify();
+    delay(10);
+
+    // Send sensor 3: Line sensor center (analog value)
+    String s3 = "S3:" + String(lineCenter);
+    pTxCharacteristic->setValue(s3.c_str());
+    pTxCharacteristic->notify();
+    delay(10);
+
+    // Send sensor 4: Line sensor right (analog value)
+    String s4 = "S4:" + String(lineRight);
+    pTxCharacteristic->setValue(s4.c_str());
+    pTxCharacteristic->notify();
+
+    Serial.print("Sensors - Dist:");
+    Serial.print(distance);
+    Serial.print(" L:");
+    Serial.print(lineLeft);
+    Serial.print(" C:");
+    Serial.print(lineCenter);
+    Serial.print(" R:");
+    Serial.println(lineRight);
   }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { appSettings } from '../services/appSettings';
 import { controlPanelSettings, type ControlButtonConfig } from '../services/controlPanelSettings';
+import { controlPanelSensorSettings, type ControlPanelSensorConfig } from '../services/controlPanelSensorSettings';
 import { Capacitor } from '@capacitor/core';
 import { BleDeviceListModal } from './BleDeviceListModal';
 
@@ -21,6 +22,15 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
   const [gamepadButtonStates, setGamepadButtonStates] = useState<boolean[]>(new Array(20).fill(false));
   const [isPortrait, setIsPortrait] = useState(false);
   const [showDeviceModal, setShowDeviceModal] = useState(false);
+
+  // Sensor states
+  const [sensorConfigs, setSensorConfigs] = useState<ControlPanelSensorConfig[]>([]);
+  const [sensorValues, setSensorValues] = useState<Record<string, string>>({
+    sensor1: '--',
+    sensor2: '--',
+    sensor3: '--',
+    sensor4: '--',
+  });
 
   // Отслеживание ориентации - блокировка вертикального режима
   useEffect(() => {
@@ -85,10 +95,50 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
     return () => clearInterval(interval);
   }, []);
 
+  // Загрузка настроек сенсоров
+  useEffect(() => {
+    setSensorConfigs(controlPanelSensorSettings.getSensors());
+
+    // Периодическое обновление настроек сенсоров
+    const interval = setInterval(() => {
+      setSensorConfigs(controlPanelSensorSettings.getSensors());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Обновляем локальный статус при изменении prop
   useEffect(() => {
     setConnectionStatus(initialConnectionStatus);
   }, [initialConnectionStatus]);
+
+  // Подписка на данные сенсоров
+  useEffect(() => {
+    bluetoothService.onDataReceived((data) => {
+      // Arduino может отправить несколько строк за раз, разбиваем по \n
+      const lines = data.split('\n');
+
+      lines.forEach(line => {
+        const message = line.trim();
+        if (!message) return;
+
+        // Парсинг данных сенсоров: S1:value, S2:value, S3:value, S4:value
+        if (message.startsWith('S1:')) {
+          const value = message.substring(3).trim();
+          setSensorValues(prev => ({ ...prev, sensor1: value }));
+        } else if (message.startsWith('S2:')) {
+          const value = message.substring(3).trim();
+          setSensorValues(prev => ({ ...prev, sensor2: value }));
+        } else if (message.startsWith('S3:')) {
+          const value = message.substring(3).trim();
+          setSensorValues(prev => ({ ...prev, sensor3: value }));
+        } else if (message.startsWith('S4:')) {
+          const value = message.substring(3).trim();
+          setSensorValues(prev => ({ ...prev, sensor4: value }));
+        }
+      });
+    });
+  }, []);
 
   useEffect(() => {
     // Подписываемся на изменения статуса подключения
@@ -544,6 +594,25 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
               <div className="text-white text-xl mb-2">Ввод:</div>
               <div className="bg-white/30 backdrop-blur-sm rounded-lg px-6 py-3 min-w-[100px]">
                 <span className="text-white font-mono text-2xl">{lastCommand || '-'}</span>
+              </div>
+            </div>
+
+            {/* Сенсоры */}
+            <div className="w-full max-w-xl">
+              <div className="grid grid-cols-4 gap-2">
+                {sensorConfigs.map((sensor) => (
+                  <div
+                    key={sensor.id}
+                    className="bg-black/50 backdrop-blur-sm rounded-lg p-2 text-center"
+                  >
+                    <div className="text-white/70 text-xs mb-1 truncate" title={sensor.name}>
+                      {sensor.name}
+                    </div>
+                    <div className="text-white font-mono text-lg font-bold">
+                      {sensorValues[sensor.id] || '--'}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 

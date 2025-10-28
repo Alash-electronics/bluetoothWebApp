@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { controlPanelSettings, type ControlButtonConfig } from '../services/controlPanelSettings';
+import { controlPanelSensorSettings, type ControlPanelSensorConfig } from '../services/controlPanelSensorSettings';
 import { macroSettings, type MacroConfig } from '../services/macroSettings';
 import { smartHomeSettings, type SmartHomeDeviceConfig, type SmartHomeSensorConfig, type SmartHomeACConfig } from '../services/smartHomeSettings';
 
@@ -19,6 +20,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, mode }) =
   const [devices, setDevices] = useState<SmartHomeDeviceConfig[]>([]);
   const [sensors, setSensors] = useState<SmartHomeSensorConfig[]>([]);
   const [acConfig, setAcConfig] = useState<SmartHomeACConfig | null>(null);
+  const [controlPanelSensors, setControlPanelSensors] = useState<ControlPanelSensorConfig[]>([]);
 
   // Показывать ли вкладки (если mode не указан, показываем обе вкладки)
   const showTabs = !mode;
@@ -29,6 +31,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, mode }) =
     setDevices(smartHomeSettings.getDevices());
     setSensors(smartHomeSettings.getSensors());
     setAcConfig(smartHomeSettings.getACConfig());
+    setControlPanelSensors(controlPanelSensorSettings.getSensors());
   }, []);
 
   const handleUpdate = (id: string, field: keyof ControlButtonConfig, value: string) => {
@@ -70,6 +73,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, mode }) =
     smartHomeSettings.updateACConfig({ [field]: value });
   };
 
+  const handleControlPanelSensorUpdate = (id: string, field: keyof ControlPanelSensorConfig, value: string) => {
+    const updatedSensors = controlPanelSensors.map(sensor =>
+      sensor.id === id ? { ...sensor, [field]: value } : sensor
+    );
+    setControlPanelSensors(updatedSensors);
+    controlPanelSensorSettings.updateSensor(id, { [field]: value });
+  };
+
   const handleReset = () => {
     if (confirm('Сбросить все настройки к значениям по умолчанию?')) {
       if (mode === 'smartHome') {
@@ -77,9 +88,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, mode }) =
         setDevices(smartHomeSettings.getDevices());
         setSensors(smartHomeSettings.getSensors());
         setAcConfig(smartHomeSettings.getACConfig());
-      } else if (activeTab === 'buttons') {
+      } else if (activeTab === 'buttons' || mode === 'control') {
         controlPanelSettings.resetToDefaults();
+        controlPanelSensorSettings.resetToDefaults();
         setButtons(controlPanelSettings.getButtons());
+        setControlPanelSensors(controlPanelSensorSettings.getSensors());
       } else {
         macroSettings.resetToDefaults();
         setMacros(macroSettings.getMacros());
@@ -575,6 +588,36 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, mode }) =
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Датчики Control Panel */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Датчики (Sensor Display)</h3>
+                <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-lg p-4 border border-cyan-200">
+                  <p className="text-sm text-gray-600 mb-3">
+                    Настройте названия датчиков, которые отображаются на экране управления. Arduino должен передавать данные в формате: S1:value, S2:value, S3:value, S4:value
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {controlPanelSensors.map((sensor, index) => (
+                      <div
+                        key={sensor.id}
+                        className="bg-white rounded-lg p-3 border border-cyan-200"
+                      >
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Датчик {index + 1} (S{index + 1})
+                        </label>
+                        <input
+                          type="text"
+                          value={sensor.name}
+                          onChange={(e) => handleControlPanelSensorUpdate(sensor.id, 'name', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 font-semibold"
+                          maxLength={15}
+                          placeholder={`Sensor ${index + 1}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
