@@ -121,7 +121,7 @@ void setup() {
                         CHARACTERISTIC_UUID_TX,
                         BLECharacteristic::PROPERTY_READ   |
                         BLECharacteristic::PROPERTY_WRITE  |
-                        BLECharacteristic::PROPERTY_WRITE_NO_RESPONSE |
+                        BLECharacteristic::PROPERTY_WRITE_NR |
                         BLECharacteristic::PROPERTY_NOTIFY |
                         BLECharacteristic::PROPERTY_INDICATE
                       );
