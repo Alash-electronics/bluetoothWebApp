@@ -55,6 +55,10 @@ BLECharacteristic *pTxCharacteristic;
 bool deviceConnected = false;
 unsigned long lastSensorCheck = 0;
 
+// Forward declarations
+void handleCommand(char cmd);
+void checkSensors();
+
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
@@ -69,7 +73,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
 class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
-      std::string rxValue = pCharacteristic->getValue();
+      String rxValue = pCharacteristic->getValue().c_str();
 
       if (rxValue.length() > 0) {
         char command = rxValue[0];
