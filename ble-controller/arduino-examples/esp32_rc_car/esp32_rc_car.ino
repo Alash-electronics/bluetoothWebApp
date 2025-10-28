@@ -49,6 +49,14 @@ BLEServer *pServer = NULL;
 BLECharacteristic *pTxCharacteristic;
 bool deviceConnected = false;
 
+// Forward declarations
+void stopMotors();
+void handleCommand(char cmd);
+void moveForward();
+void moveBackward();
+void turnLeft();
+void turnRight();
+
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
@@ -66,7 +74,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
 class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
-      std::string rxValue = pCharacteristic->getValue();
+      String rxValue = pCharacteristic->getValue().c_str();
 
       if (rxValue.length() > 0) {
         char command = rxValue[0];
@@ -87,11 +95,9 @@ void setup() {
   pinMode(MOTOR_B_IN4, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
 
-  // Setup PWM
-  ledcSetup(PWM_CHANNEL_A, PWM_FREQ, PWM_RESOLUTION);
-  ledcSetup(PWM_CHANNEL_B, PWM_FREQ, PWM_RESOLUTION);
-  ledcAttachPin(MOTOR_A_EN, PWM_CHANNEL_A);
-  ledcAttachPin(MOTOR_B_EN, PWM_CHANNEL_B);
+  // Setup PWM (ESP32 Arduino 3.x API)
+  ledcAttach(MOTOR_A_EN, PWM_FREQ, PWM_RESOLUTION);
+  ledcAttach(MOTOR_B_EN, PWM_FREQ, PWM_RESOLUTION);
 
   stopMotors();
 
@@ -197,8 +203,8 @@ void moveForward() {
   digitalWrite(MOTOR_A_IN2, LOW);
   digitalWrite(MOTOR_B_IN3, HIGH);
   digitalWrite(MOTOR_B_IN4, LOW);
-  ledcWrite(PWM_CHANNEL_A, motorSpeed);
-  ledcWrite(PWM_CHANNEL_B, motorSpeed);
+  ledcWrite(MOTOR_A_EN, motorSpeed);
+  ledcWrite(MOTOR_B_EN, motorSpeed);
 }
 
 void moveBackward() {
@@ -207,8 +213,8 @@ void moveBackward() {
   digitalWrite(MOTOR_A_IN2, HIGH);
   digitalWrite(MOTOR_B_IN3, LOW);
   digitalWrite(MOTOR_B_IN4, HIGH);
-  ledcWrite(PWM_CHANNEL_A, motorSpeed);
-  ledcWrite(PWM_CHANNEL_B, motorSpeed);
+  ledcWrite(MOTOR_A_EN, motorSpeed);
+  ledcWrite(MOTOR_B_EN, motorSpeed);
 }
 
 void turnLeft() {
@@ -217,8 +223,8 @@ void turnLeft() {
   digitalWrite(MOTOR_A_IN2, HIGH);
   digitalWrite(MOTOR_B_IN3, HIGH);
   digitalWrite(MOTOR_B_IN4, LOW);
-  ledcWrite(PWM_CHANNEL_A, motorSpeed);
-  ledcWrite(PWM_CHANNEL_B, motorSpeed);
+  ledcWrite(MOTOR_A_EN, motorSpeed);
+  ledcWrite(MOTOR_B_EN, motorSpeed);
 }
 
 void turnRight() {
@@ -227,8 +233,8 @@ void turnRight() {
   digitalWrite(MOTOR_A_IN2, LOW);
   digitalWrite(MOTOR_B_IN3, LOW);
   digitalWrite(MOTOR_B_IN4, HIGH);
-  ledcWrite(PWM_CHANNEL_A, motorSpeed);
-  ledcWrite(PWM_CHANNEL_B, motorSpeed);
+  ledcWrite(MOTOR_A_EN, motorSpeed);
+  ledcWrite(MOTOR_B_EN, motorSpeed);
 }
 
 void stopMotors() {
@@ -237,6 +243,6 @@ void stopMotors() {
   digitalWrite(MOTOR_A_IN2, LOW);
   digitalWrite(MOTOR_B_IN3, LOW);
   digitalWrite(MOTOR_B_IN4, LOW);
-  ledcWrite(PWM_CHANNEL_A, 0);
-  ledcWrite(PWM_CHANNEL_B, 0);
+  ledcWrite(MOTOR_A_EN, 0);
+  ledcWrite(MOTOR_B_EN, 0);
 }
