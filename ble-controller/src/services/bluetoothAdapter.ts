@@ -19,6 +19,7 @@ const UART_TX_CHARACTERISTIC_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
 export interface IBluetoothAdapter {
   isSupported(): boolean;
   connect(): Promise<BluetoothDevice>;
+  connectToDevice(deviceId: string, deviceName?: string): Promise<BluetoothDevice>;
   disconnect(): Promise<void>;
   sendData(data: string): Promise<void>;
   onDataReceived(callback: (data: string) => void): void;
@@ -98,6 +99,12 @@ class WebBluetoothAdapter implements IBluetoothAdapter {
       this.onConnectionStatusCallback?.('disconnected');
       throw error;
     }
+  }
+
+  async connectToDevice(_deviceId: string, _deviceName?: string): Promise<BluetoothDevice> {
+    // Web Bluetooth doesn't support connecting by deviceId directly
+    // Fall back to normal connect() which shows the device picker
+    return this.connect();
   }
 
   async disconnect(): Promise<void> {
@@ -203,12 +210,11 @@ class CapacitorBluetoothAdapter implements IBluetoothAdapter {
       // Initialize BLE
       await BleClient.initialize();
 
-      // Request device (scan and select)
-      this.bleDevice = await BleClient.requestDevice({
-        services: [UART_SERVICE_UUID],
-        optionalServices: [UART_SERVICE_UUID],
-        namePrefix: 'HM'
-      });
+      // Request device
+      // Note: iOS will show all BLE devices in range
+      // User should select their module (e.g., BT05, HM-10, HC-05, ESP32)
+      console.log('[Capacitor BLE] Opening device selection dialog...');
+      this.bleDevice = await BleClient.requestDevice();
 
       // Connect to device
       await BleClient.connect(this.bleDevice.deviceId, () => {
@@ -245,6 +251,74 @@ class CapacitorBluetoothAdapter implements IBluetoothAdapter {
     }
   }
 
+  async connectToDevice(deviceId: string, deviceName?: string): Promise<BluetoothDevice> {
+    try {
+      if (!this.isSupported()) {
+        throw new Error('Capacitor not available on this platform');
+      }
+
+      console.log('[CapacitorAdapter] Starting connection to:', deviceId, deviceName);
+
+      this.connectionStatus = 'connecting';
+      this.onConnectionStatusCallback?.('connecting');
+
+      // BLE уже инициализирован в сканировании, не вызываем повторно
+      // await BleClient.initialize(); // УБРАЛИ
+
+      // Connect directly to the device by deviceId (from custom scan)
+      console.log('[CapacitorAdapter] Calling BleClient.connect...');
+      await BleClient.connect(
+        deviceId,
+        () => {
+          // Disconnect callback
+          console.log('[CapacitorAdapter] Device disconnected');
+          this.handleDisconnect();
+        }
+      );
+
+      console.log('[CapacitorAdapter] Connected, starting notifications...');
+
+      // Start notifications
+      await BleClient.startNotifications(
+        deviceId,
+        UART_SERVICE_UUID,
+        UART_TX_CHARACTERISTIC_UUID,
+        (value) => {
+          // Data received callback
+          const text = dataViewToText(value);
+          console.log('[CapacitorAdapter] Data received:', text);
+          this.onDataReceivedCallback?.(text);
+        }
+      );
+
+      // Важно: даем время характеристике полностью инициализироваться перед первой записью
+      console.log('[CapacitorAdapter] Waiting for characteristic to be ready...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      this.bleDevice = {
+        deviceId: deviceId,
+        name: deviceName || 'BLE Device'
+      };
+
+      this.device = {
+        name: deviceName || 'BLE Device',
+        id: deviceId,
+        connected: true
+      };
+
+      this.connectionStatus = 'connected';
+      this.onConnectionStatusCallback?.('connected');
+
+      console.log('[CapacitorAdapter] Connection complete!');
+      return this.device;
+    } catch (error) {
+      console.error('[CapacitorAdapter] Connection failed:', error);
+      this.connectionStatus = 'disconnected';
+      this.onConnectionStatusCallback?.('disconnected');
+      throw error;
+    }
+  }
+
   async disconnect(): Promise<void> {
     if (this.bleDevice) {
       try {
@@ -268,7 +342,8 @@ class CapacitorBluetoothAdapter implements IBluetoothAdapter {
     const dataBuffer = encoder.encode(data);
     const dataView = new DataView(dataBuffer.buffer);
 
-    await BleClient.write(
+    // BT05/HM-10 модули используют writeWithoutResponse (не требуют подтверждения)
+    await BleClient.writeWithoutResponse(
       this.bleDevice.deviceId,
       UART_SERVICE_UUID,
       UART_TX_CHARACTERISTIC_UUID,

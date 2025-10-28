@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { appSettings } from '../services/appSettings';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { smartHomeSettings, type SmartHomeACConfig, type SmartHomeDeviceConfig } from '../services/smartHomeSettings';
-import { useFullscreen } from '../hooks/useFullscreen';
 
 interface SmartHomeRoomControlProps {
   roomId: string;
@@ -23,7 +22,6 @@ export const SmartHomeRoomControl: React.FC<SmartHomeRoomControlProps> = ({
   onBack,
   onOpenSettings
 }) => {
-  useFullscreen();
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(initialConnectionStatus);
   const isConnected = connectionStatus === 'connected';
   const [acEnabled, setAcEnabled] = useState(true);
@@ -271,7 +269,7 @@ export const SmartHomeRoomControl: React.FC<SmartHomeRoomControlProps> = ({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Верхний бар */}
-      <div className="bg-white p-4 shadow-sm">
+      <div className="bg-white pt-12 px-4 pb-4 shadow-sm">
         <div className="flex items-center justify-between">
           {/* Кнопка назад */}
           <button

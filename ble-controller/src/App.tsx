@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { ControlPanel } from './components/ControlPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { DeviceSelection } from './components/DeviceSelection';
@@ -13,8 +14,10 @@ import { type ConnectionStatus } from './services/bluetoothService';
 type ViewMode = 'selection' | 'control' | 'terminal' | 'smartHome' | 'smartHomeRoom' | 'joystick';
 
 function App() {
-  // Проверка поддержки Web Bluetooth API
-  const isBluetoothSupported = typeof navigator !== 'undefined' && 'bluetooth' in navigator;
+  // Проверка поддержки Bluetooth (Web Bluetooth API или Capacitor)
+  const isBluetoothSupported =
+    Capacitor.isNativePlatform() || // Capacitor iOS/Android
+    (typeof navigator !== 'undefined' && 'bluetooth' in navigator); // Web Bluetooth
 
   const [showSplash, setShowSplash] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');

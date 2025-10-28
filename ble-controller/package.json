@@ -36,10 +36,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:capacitor": "CAPACITOR=true tsc -b && CAPACITOR=true vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "sync:ios": "npm run build:capacitor && npx cap sync ios",
+    "sync:android": "npm run build:capacitor && npx cap sync android",
+    "open:ios": "npx cap open ios",
+    "open:android": "npx cap open android"
   },
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^7.2.0",

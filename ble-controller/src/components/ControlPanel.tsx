@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { appSettings } from '../services/appSettings';
 import { controlPanelSettings, type ControlButtonConfig } from '../services/controlPanelSettings';
-import { useFullscreen } from '../hooks/useFullscreen';
 
 interface ControlPanelProps {
   connectionStatus: ConnectionStatus;
@@ -12,14 +11,12 @@ interface ControlPanelProps {
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: initialConnectionStatus, deviceName, onOpenSettings, onBack }) => {
-  useFullscreen();
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(initialConnectionStatus);
   const isConnected = connectionStatus === 'connected';
   const [pressedButton, setPressedButton] = useState<string | null>(null);
   const [lastCommand, setLastCommand] = useState<string>('');
   const [buttonConfigs, setButtonConfigs] = useState<ControlButtonConfig[]>([]);
   const [gamepadButtonStates, setGamepadButtonStates] = useState<boolean[]>(new Array(20).fill(false));
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
 
   // Отслеживание ориентации - блокировка вертикального режима
@@ -293,27 +290,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
     }
   };
 
-  const toggleFullscreen = () => {
-    appSettings.vibrate(30);
-
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error('Error attempting to enable fullscreen:', err);
-      });
-    } else {
-      document.exitFullscreen();
-    }
-  };
-
-  // Отслеживание состояния fullscreen
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
 
   if (isPortrait) {
     return (
@@ -332,7 +308,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-300 to-blue-400 flex flex-col overflow-hidden select-none">
       {/* Верхний бар */}
-      <div className="relative flex items-center justify-between p-2 sm:p-4">
+      <div className="relative flex items-center justify-between pt-12 px-2 pb-2 sm:p-4">
         {/* Кнопка назад */}
         <button
           onClick={handleBackClick}
@@ -402,7 +378,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
           <button
             onClick={() => {
               appSettings.vibrate(30);
-              window.open('https://github.com/Alash-electronics/bluetoohWebApp/tree/main/arduino-examples', '_blank');
+              window.open('https://github.com/Alash-electronics/bluetoothWebApp/tree/main/ble-controller/arduino-examples', '_blank');
             }}
             className="w-12 h-12 bg-transparent hover:bg-white/10 rounded-lg flex items-center justify-center transition"
             title="Arduino примеры на GitHub"
@@ -410,23 +386,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ connectionStatus: in
             <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
             </svg>
-          </button>
-
-          {/* Кнопка fullscreen */}
-          <button
-            onClick={toggleFullscreen}
-            className="w-12 h-12 bg-transparent hover:bg-white/10 rounded-lg flex items-center justify-center transition"
-            title={isFullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
-          >
-            {isFullscreen ? (
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-              </svg>
-            )}
           </button>
 
           {/* Кнопка настроек */}

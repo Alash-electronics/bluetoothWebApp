@@ -3,7 +3,6 @@ import { localization } from '../services/localization';
 import { appSettings } from '../services/appSettings';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { roomSettings, type RoomConfig } from '../services/roomSettings';
-import { useFullscreen } from '../hooks/useFullscreen';
 
 interface SmartHomePanelProps {
   connectionStatus: ConnectionStatus;
@@ -20,7 +19,6 @@ export const SmartHomePanel: React.FC<SmartHomePanelProps> = ({
   onSelectRoom,
   onBack
 }) => {
-  useFullscreen();
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(initialConnectionStatus);
   const isConnected = connectionStatus === 'connected';
   const [, forceUpdate] = useState({});
@@ -125,7 +123,7 @@ export const SmartHomePanel: React.FC<SmartHomePanelProps> = ({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Верхний бар */}
-      <div className="bg-white p-4 shadow-sm">
+      <div className="bg-white pt-12 px-4 pb-4 shadow-sm">
         <div className="flex items-center justify-between">
           {/* Кнопка назад */}
           <button

@@ -29,9 +29,14 @@ class BluetoothService {
     return this.adapter.isSupported();
   }
 
-  // Подключение к устройству
+  // Подключение к устройству (показывает системный диалог выбора)
   async connect(): Promise<BluetoothDevice> {
     return this.adapter.connect();
+  }
+
+  // Подключение к конкретному устройству по deviceId (для кастомного UI)
+  async connectToDevice(deviceId: string, deviceName?: string): Promise<BluetoothDevice> {
+    return this.adapter.connectToDevice(deviceId, deviceName);
   }
 
   // Отключение от устройства

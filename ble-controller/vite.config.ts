@@ -5,5 +5,6 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), basicSsl()],
-  base: '/bluetoothWebApp/',
+  // Use root path for Capacitor builds, subdirectory for GitHub Pages
+  base: process.env.CAPACITOR ? '/' : '/bluetoothWebApp/',
 })

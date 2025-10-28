@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { localization } from '../services/localization';
 import { appSettings } from '../services/appSettings';
-import { useFullscreen } from '../hooks/useFullscreen';
+import { BleDeviceListModal } from './BleDeviceListModal';
 
 interface DeviceSelectionProps {
   onDeviceSelected: () => void;
@@ -14,9 +15,10 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
   const [, forceUpdate] = useState({});
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(bluetoothService.getConnectionStatus());
   const [_isConnecting, setIsConnecting] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  useFullscreen();
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [pendingDeviceType, setPendingDeviceType] = useState<string | null>(null);
+  const isNativePlatform = Capacitor.isNativePlatform();
 
   useEffect(() => {
     const unsubscribe = localization.subscribe(() => forceUpdate({}));
@@ -34,18 +36,71 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
     };
   }, [onConnectionChange]);
 
-  const handleConnect = async () => {
+  // Универсальная функция подключения (использует кастомный UI на iOS, системный диалог на Web)
+  const connectToDevice = async () => {
     appSettings.vibrate();
 
-    try {
-      const device = await bluetoothService.connect();
-      onConnectionChange('connected', device.name);
-      appSettings.vibrate(100);
-      // Не переходим на экран управления автоматически
-    } catch (error) {
-      console.error('Connection error:', error);
-      appSettings.vibrate([100, 50, 100]);
+    if (isNativePlatform) {
+      // На нативных платформах показываем кастомный список устройств
+      setShowDeviceModal(true);
+    } else {
+      // На веб-платформах используем системный диалог
+      try {
+        const device = await bluetoothService.connect();
+        onConnectionChange('connected', device.name);
+        appSettings.vibrate(100);
+      } catch (error) {
+        console.error('Connection error:', error);
+        appSettings.vibrate([100, 50, 100]);
+      }
     }
+  };
+
+  const handleConnect = async () => {
+    await connectToDevice();
+  };
+
+  // Callbacks для BleDeviceListModal
+  const handleDeviceConnected = () => {
+    setShowDeviceModal(false);
+    setIsConnecting(false);
+    appSettings.vibrate(100);
+
+    const device = bluetoothService.getDevice();
+    if (device) {
+      onConnectionChange('connected', device.name);
+    }
+
+    // Переходим к нужному экрану в зависимости от выбранного типа устройства
+    if (pendingDeviceType === 'terminal') {
+      onSelectDeviceType?.('terminal');
+    } else if (pendingDeviceType === 'smartHome') {
+      onSelectDeviceType?.('smartHome');
+    } else if (pendingDeviceType === 'joystick') {
+      onSelectDeviceType?.('joystick');
+    } else if (pendingDeviceType === 'rcCar') {
+      onDeviceSelected();
+    }
+
+    setPendingDeviceType(null);
+  };
+
+  const handleDeviceModalCancel = () => {
+    setShowDeviceModal(false);
+    setIsConnecting(false);
+    setPendingDeviceType(null);
+  };
+
+  const handleDeviceModalError = (error: string) => {
+    console.error('Connection error:', error);
+    setConnectionError(error);
+    appSettings.vibrate([100, 50, 100]);
+    setShowDeviceModal(false);
+    setIsConnecting(false);
+    setPendingDeviceType(null);
+
+    // Показываем ошибку на 5 секунд
+    setTimeout(() => setConnectionError(null), 5000);
   };
 
   const handleLanguageClick = () => {
@@ -59,51 +114,6 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
     appSettings.vibrate();
   };
 
-  const toggleFullscreen = () => {
-    try {
-      appSettings.vibrate(30);
-
-      if (document?.documentElement?.requestFullscreen && !document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-          console.error('Error attempting to enable fullscreen:', err);
-        });
-      } else if (document?.exitFullscreen) {
-        document.exitFullscreen().catch(err => {
-          console.error('Error attempting to exit fullscreen:', err);
-        });
-      }
-    } catch (error) {
-      console.error('toggleFullscreen error:', error);
-    }
-  };
-
-  // Отслеживание состояния fullscreen
-  useEffect(() => {
-    try {
-      const handleFullscreenChange = () => {
-        setIsFullscreen(!!document.fullscreenElement);
-      };
-
-      document.addEventListener('fullscreenchange', handleFullscreenChange);
-      return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    } catch (error) {
-      console.error('Fullscreen change listener error:', error);
-    }
-  }, []);
-
-  // Автоматический вход в fullscreen при монтировании
-  useEffect(() => {
-    try {
-      if (document?.documentElement?.requestFullscreen && !document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-          console.error('Error attempting to enable fullscreen:', err);
-        });
-      }
-    } catch (error) {
-      console.error('Auto fullscreen error:', error);
-    }
-  }, []);
-
   const handleDeviceTypeClick = async (type: string, isLocked: boolean) => {
     if (isLocked) {
       appSettings.vibrate([50, 50, 50]);
@@ -115,18 +125,28 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
     if (type === 'terminal') {
       if (!bluetoothService.isConnected()) {
         setIsConnecting(true);
-        try {
-          const device = await bluetoothService.connect();
-          onConnectionChange('connected', device.name);
-          appSettings.vibrate(100);
-          onSelectDeviceType?.('terminal');
-        } catch (error) {
-          console.error('Connection error:', error);
-          appSettings.vibrate([100, 50, 100]);
+        setPendingDeviceType('terminal');
+        if (isNativePlatform) {
+          // На нативных платформах показываем кастомный список устройств
+          setShowDeviceModal(true);
+          // Подключение произойдет в модале, после чего вызовется handleDeviceConnected
+        } else {
+          // На веб-платформах используем системный диалог
+          try {
+            const device = await bluetoothService.connect();
+            onConnectionChange('connected', device.name);
+            appSettings.vibrate(100);
+            onSelectDeviceType?.('terminal');
+          } catch (error) {
+            console.error('Connection error:', error);
+            appSettings.vibrate([100, 50, 100]);
+            setIsConnecting(false);
+            setPendingDeviceType(null);
+            return;
+          }
           setIsConnecting(false);
-          return;
+          setPendingDeviceType(null);
         }
-        setIsConnecting(false);
       } else {
         // Если уже подключено, просто переходим к Terminal
         onSelectDeviceType?.('terminal');
@@ -138,18 +158,27 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
     if (type === 'smartHome') {
       if (!bluetoothService.isConnected()) {
         setIsConnecting(true);
-        try {
-          const device = await bluetoothService.connect();
-          onConnectionChange('connected', device.name);
-          appSettings.vibrate(100);
-          onSelectDeviceType?.('smartHome');
-        } catch (error) {
-          console.error('Connection error:', error);
-          appSettings.vibrate([100, 50, 100]);
+        setPendingDeviceType('smartHome');
+        if (isNativePlatform) {
+          // На нативных платформах показываем кастомный список устройств
+          setShowDeviceModal(true);
+        } else {
+          // На веб-платформах используем системный диалог
+          try {
+            const device = await bluetoothService.connect();
+            onConnectionChange('connected', device.name);
+            appSettings.vibrate(100);
+            onSelectDeviceType?.('smartHome');
+          } catch (error) {
+            console.error('Connection error:', error);
+            appSettings.vibrate([100, 50, 100]);
+            setIsConnecting(false);
+            setPendingDeviceType(null);
+            return;
+          }
           setIsConnecting(false);
-          return;
+          setPendingDeviceType(null);
         }
-        setIsConnecting(false);
       } else {
         // Если уже подключено, просто переходим к Smart Home
         onSelectDeviceType?.('smartHome');
@@ -161,18 +190,27 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
     if (type === 'rcCar') {
       if (!bluetoothService.isConnected()) {
         setIsConnecting(true);
-        try {
-          const device = await bluetoothService.connect();
-          onConnectionChange('connected', device.name);
-          appSettings.vibrate(100);
-          onDeviceSelected();
-        } catch (error) {
-          console.error('Connection error:', error);
-          appSettings.vibrate([100, 50, 100]);
+        setPendingDeviceType('rcCar');
+        if (isNativePlatform) {
+          // На нативных платформах показываем кастомный список устройств
+          setShowDeviceModal(true);
+        } else {
+          // На веб-платформах используем системный диалог
+          try {
+            const device = await bluetoothService.connect();
+            onConnectionChange('connected', device.name);
+            appSettings.vibrate(100);
+            onDeviceSelected();
+          } catch (error) {
+            console.error('Connection error:', error);
+            appSettings.vibrate([100, 50, 100]);
+            setIsConnecting(false);
+            setPendingDeviceType(null);
+            return;
+          }
           setIsConnecting(false);
-          return;
+          setPendingDeviceType(null);
         }
-        setIsConnecting(false);
       } else {
         // Если уже подключено, просто переходим к управлению
         onDeviceSelected();
@@ -183,18 +221,27 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
     if (type === 'joystick') {
       if (!bluetoothService.isConnected()) {
         setIsConnecting(true);
-        try {
-          const device = await bluetoothService.connect();
-          onConnectionChange('connected', device.name);
-          appSettings.vibrate(100);
-          onSelectDeviceType?.('joystick');
-        } catch (error) {
-          console.error('Connection error:', error);
-          appSettings.vibrate([100, 50, 100]);
+        setPendingDeviceType('joystick');
+        if (isNativePlatform) {
+          // На нативных платформах показываем кастомный список устройств
+          setShowDeviceModal(true);
+        } else {
+          // На веб-платформах используем системный диалог
+          try {
+            const device = await bluetoothService.connect();
+            onConnectionChange('connected', device.name);
+            appSettings.vibrate(100);
+            onSelectDeviceType?.('joystick');
+          } catch (error) {
+            console.error('Connection error:', error);
+            appSettings.vibrate([100, 50, 100]);
+            setIsConnecting(false);
+            setPendingDeviceType(null);
+            return;
+          }
           setIsConnecting(false);
-          return;
+          setPendingDeviceType(null);
         }
-        setIsConnecting(false);
       } else {
         // Если уже подключено, просто переходим к Joystick
         onSelectDeviceType?.('joystick');
@@ -288,9 +335,9 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-300 to-blue-400 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-white via-cyan-300 to-white flex flex-col">
       {/* Верхний бар - компактный для мобилки */}
-      <div className="flex items-center justify-between px-2 landscape:px-1 py-2 landscape:py-1 sm:p-4 sm:landscape:p-4 gap-1 sm:gap-2 sm:landscape:gap-2">
+      <div className="flex items-center justify-between px-2 landscape:px-1 pt-14 pb-2 landscape:pt-1 landscape:pb-1 sm:p-4 sm:landscape:p-4 gap-1 sm:gap-2 sm:landscape:gap-2">
         {/* Placeholder для баланса на десктопе */}
         <div className="w-0 sm:w-12"></div>
 
@@ -299,7 +346,7 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
           <button
             onClick={handleConnect}
             disabled={connectionStatus === 'connecting'}
-            className="bg-black/80 rounded-full px-2 landscape:px-1.5 py-1.5 landscape:py-0.5 sm:px-6 sm:py-3 sm:landscape:px-6 sm:landscape:py-3 flex items-center gap-1.5 landscape:gap-1 sm:gap-3 sm:landscape:gap-3 min-w-0 hover:bg-black/90 transition disabled:opacity-50"
+            className="bg-gray-900/90 rounded-full px-2 landscape:px-1.5 py-1.5 landscape:py-0.5 sm:px-6 sm:py-3 sm:landscape:px-6 sm:landscape:py-3 flex items-center gap-1.5 landscape:gap-1 sm:gap-3 sm:landscape:gap-3 min-w-0 hover:bg-gray-900 transition disabled:opacity-50"
           >
             <svg className={`w-6 h-6 landscape:w-4 landscape:h-4 sm:w-8 sm:h-8 sm:landscape:w-8 sm:landscape:h-8 text-cyan-400 flex-shrink-0 ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`} fill="currentColor" viewBox="0 0 24 24">
               <path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/>
@@ -341,9 +388,9 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
           <button
             onClick={() => {
               appSettings.vibrate(30);
-              window.open('https://github.com/Alash-electronics/bluetoohWebApp/tree/main/arduino-examples', '_blank');
+              window.open('https://github.com/Alash-electronics/bluetoothWebApp/tree/main/ble-controller/arduino-examples', '_blank');
             }}
-            className="w-9 h-9 landscape:w-6 landscape:h-6 sm:w-12 sm:h-12 sm:landscape:w-12 sm:landscape:h-12 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition flex-shrink-0"
+            className="w-9 h-9 landscape:w-6 landscape:h-6 sm:w-12 sm:h-12 sm:landscape:w-12 sm:landscape:h-12 bg-gray-900/90 hover:bg-gray-900 rounded-lg flex items-center justify-center transition flex-shrink-0"
             title="Arduino примеры на GitHub"
           >
             <svg className="w-5 h-5 landscape:w-3 landscape:h-3 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -351,29 +398,11 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
             </svg>
           </button>
 
-          {/* Fullscreen - скрыт на iOS */}
-          {!isIOS && (
-            <button
-              onClick={toggleFullscreen}
-              className="w-9 h-9 landscape:w-6 landscape:h-6 sm:w-12 sm:h-12 sm:landscape:w-12 sm:landscape:h-12 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition flex-shrink-0"
-              title={isFullscreen ? 'Выйти из полноэкранного режима' : 'Полноэкранный режим'}
-            >
-              {isFullscreen ? (
-                <svg className="w-5 h-5 landscape:w-3 landscape:h-3 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 landscape:w-3 landscape:h-3 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                </svg>
-              )}
-            </button>
-          )}
 
           {/* Вибрация */}
           <button
             onClick={handleVibrationClick}
-            className="w-9 h-9 landscape:w-6 landscape:h-6 sm:w-12 sm:h-12 sm:landscape:w-12 sm:landscape:h-12 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition flex-shrink-0"
+            className="w-9 h-9 landscape:w-6 landscape:h-6 sm:w-12 sm:h-12 sm:landscape:w-12 sm:landscape:h-12 bg-gray-900/90 hover:bg-gray-900 rounded-lg flex items-center justify-center transition flex-shrink-0"
           >
             {appSettings.isVibrationEnabled() ? (
               <svg className="w-5 h-5 landscape:w-3 landscape:h-3 sm:w-6 sm:h-6 sm:landscape:w-6 sm:landscape:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -389,7 +418,7 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
           {/* Язык */}
           <button
             onClick={handleLanguageClick}
-            className="h-9 landscape:h-6 px-2 landscape:px-1 sm:h-12 sm:px-4 sm:landscape:h-12 sm:landscape:px-4 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition"
+            className="h-9 landscape:h-6 px-2 landscape:px-1 sm:h-12 sm:px-4 sm:landscape:h-12 sm:landscape:px-4 bg-gray-900/90 hover:bg-gray-900 rounded-lg flex items-center justify-center transition"
           >
             <span className="text-white font-semibold text-xs landscape:text-[10px] sm:text-base sm:landscape:text-base">{localization.getLanguageName()}</span>
           </button>
@@ -457,6 +486,36 @@ export const DeviceSelection: React.FC<DeviceSelectionProps> = ({ onDeviceSelect
         <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="h-12 sm:h-20 opacity-70" />
         <p className="text-white/50 text-xs sm:text-sm">{localization.t('version')}</p>
       </div>
+
+      {/* Модальное окно выбора устройства (только для нативных платформ) */}
+      {showDeviceModal && (
+        <BleDeviceListModal
+          onConnected={handleDeviceConnected}
+          onCancel={handleDeviceModalCancel}
+          onError={handleDeviceModalError}
+        />
+      )}
+
+      {/* Сообщение об ошибке */}
+      {connectionError && (
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-96 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50 flex items-start gap-3">
+          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1">
+            <p className="font-semibold">{localization.t('error')}</p>
+            <p className="text-sm mt-1">{connectionError}</p>
+          </div>
+          <button
+            onClick={() => setConnectionError(null)}
+            className="text-white hover:text-gray-200"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

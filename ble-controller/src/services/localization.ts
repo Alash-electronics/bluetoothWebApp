@@ -49,6 +49,11 @@ interface Translations {
   // Другое
   version: string;
   error: string;
+  cancel: string;
+  selectDevice: string;
+  scanning: string;
+  noDevicesFound: string;
+  makesSureDeviceIsOn: string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -95,6 +100,11 @@ const translations: Record<Language, Translations> = {
 
     version: 'v1.0.1',
     error: 'Ошибка',
+    cancel: 'Отмена',
+    selectDevice: 'Выберите Устройство',
+    scanning: 'Сканирование',
+    noDevicesFound: 'Устройства не найдены',
+    makesSureDeviceIsOn: 'Убедитесь, что устройство включено и находится рядом',
   },
 
   en: {
@@ -140,6 +150,11 @@ const translations: Record<Language, Translations> = {
 
     version: 'v1.0.1',
     error: 'Error',
+    cancel: 'Cancel',
+    selectDevice: 'Select Device',
+    scanning: 'Scanning',
+    noDevicesFound: 'No devices found',
+    makesSureDeviceIsOn: 'Make sure device is turned on and nearby',
   },
 
   kk: {
@@ -185,6 +200,11 @@ const translations: Record<Language, Translations> = {
 
     version: 'н1.0.1',
     error: 'Қате',
+    cancel: 'Болдырмау',
+    selectDevice: 'Құрылғыны Таңдаңыз',
+    scanning: 'Сканерлеу',
+    noDevicesFound: 'Құрылғылар табылмады',
+    makesSureDeviceIsOn: 'Құрылғының қосулы және жақын жерде екеніне көз жеткізіңіз',
   },
 };
 
