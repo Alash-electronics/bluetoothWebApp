@@ -1,10 +1,21 @@
 /*
- * ESP32 BLE Smart Home Control Example
+ * ESP32 BLE Smart Home Control Example with Multi-Room Support
  *
  * This sketch demonstrates home automation control using ESP32's built-in BLE.
  * Compatible with the Smart Home panel in the web app.
  *
- * Hardware connections:
+ * MULTI-ROOM SUPPORT:
+ * - Supports up to 6 rooms (configurable pin arrays below)
+ * - App sends room number (1-6) when switching rooms
+ * - All commands (L/l, W/w, etc.) apply to current active room
+ *
+ * HOW TO CONFIGURE:
+ * 1. Edit the pin arrays below for each room's devices
+ * 2. Connect relays/LEDs to the specified pins
+ * 3. Connect sensors (shared across all rooms or separate per room)
+ * 4. Upload to ESP32 and connect from the app
+ *
+ * EXAMPLE SETUP (Room 1):
  * LEDs / Relays:
  *   LED (Light)    -> GPIO 2  (built-in LED)
  *   Window Relay   -> GPIO 4
@@ -12,9 +23,8 @@
  *   Door Lock      -> GPIO 18
  *   Fan Relay      -> GPIO 19
  *   AC Relay       -> GPIO 21
- * 
  *
- * Sensors:
+ * Sensors (shared for all rooms):
  *   Motion Sensor  -> GPIO 34 (input only)
  *   Gas Sensor     -> GPIO 35 (input only)
  *   Rain Sensor    -> GPIO 32
@@ -25,27 +35,48 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
-// Device pins
-#define LED_PIN      2   // Built-in LED
-#define WINDOW_PIN   4
-#define MUSIC_PIN    5
-#define DOOR_PIN     18
-#define FAN_PIN      19
-#define AC_PIN       21
+// ===== MULTI-ROOM CONFIGURATION =====
+// Current active room (1-6)
+int currentRoom = 1;
 
-// Sensor pins
+// Pin arrays for each room (6 rooms max)
+// Format: {LED, Window, Music, Door, Fan, AC}
+const int roomPins[6][6] = {
+  // Room 1
+  {2, 4, 5, 18, 19, 21},
+  // Room 2 (configure your pins here)
+  {12, 13, 14, 25, 26, 27},
+  // Room 3 (configure your pins here)
+  {15, 16, 17, 22, 23, 33},
+  // Room 4 (configure your pins here)
+  {2, 4, 5, 18, 19, 21},  // Example: same as Room 1
+  // Room 5 (configure your pins here)
+  {2, 4, 5, 18, 19, 21},  // Example: same as Room 1
+  // Room 6 (configure your pins here)
+  {2, 4, 5, 18, 19, 21},  // Example: same as Room 1
+};
+
+// Pin indices
+#define PIN_LED    0
+#define PIN_WINDOW 1
+#define PIN_MUSIC  2
+#define PIN_DOOR   3
+#define PIN_FAN    4
+#define PIN_AC     5
+
+// Sensor pins (shared for all rooms, or configure per-room if needed)
 #define MOTION_PIN   34
 #define GAS_PIN      35
 #define RAIN_PIN     32
 
-// Device states
-bool ledState = false;
-bool windowState = false;
-bool musicState = false;
-bool doorLocked = true;
-bool fanState = false;
-bool acState = false;
-int acTemp = 24;  // Default AC temperature
+// Device states per room
+bool ledState[6] = {false};
+bool windowState[6] = {false};
+bool musicState[6] = {false};
+bool doorLocked[6] = {true, true, true, true, true, true};
+bool fanState[6] = {false};
+bool acState[6] = {false};
+int acTemp[6] = {24, 24, 24, 24, 24, 24};  // Default AC temperature per room
 
 // UUIDs for HM-10 compatible UART service
 #define SERVICE_UUID           "0000ffe0-0000-1000-8000-00805f9b34fb"
@@ -88,28 +119,31 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 void setup() {
   Serial.begin(115200);
 
-  // Setup device pins
-  pinMode(LED_PIN, OUTPUT);
-  pinMode(WINDOW_PIN, OUTPUT);
-  pinMode(MUSIC_PIN, OUTPUT);
-  pinMode(DOOR_PIN, OUTPUT);
-  pinMode(FAN_PIN, OUTPUT);
-  pinMode(AC_PIN, OUTPUT);
+  // Setup device pins for ALL rooms
+  for (int room = 0; room < 6; room++) {
+    pinMode(roomPins[room][PIN_LED], OUTPUT);
+    pinMode(roomPins[room][PIN_WINDOW], OUTPUT);
+    pinMode(roomPins[room][PIN_MUSIC], OUTPUT);
+    pinMode(roomPins[room][PIN_DOOR], OUTPUT);
+    pinMode(roomPins[room][PIN_FAN], OUTPUT);
+    pinMode(roomPins[room][PIN_AC], OUTPUT);
+
+    // Initial states (all OFF, doors LOCKED)
+    digitalWrite(roomPins[room][PIN_LED], LOW);
+    digitalWrite(roomPins[room][PIN_WINDOW], LOW);
+    digitalWrite(roomPins[room][PIN_MUSIC], LOW);
+    digitalWrite(roomPins[room][PIN_DOOR], HIGH);  // Door locked
+    digitalWrite(roomPins[room][PIN_FAN], LOW);
+    digitalWrite(roomPins[room][PIN_AC], LOW);
+  }
 
   // Setup sensor pins
   pinMode(MOTION_PIN, INPUT);
   pinMode(GAS_PIN, INPUT);
   pinMode(RAIN_PIN, INPUT);
 
-  // Initial states
-  digitalWrite(LED_PIN, LOW);
-  digitalWrite(WINDOW_PIN, LOW);
-  digitalWrite(MUSIC_PIN, LOW);
-  digitalWrite(DOOR_PIN, HIGH);  // Door locked
-  digitalWrite(FAN_PIN, LOW);
-  digitalWrite(AC_PIN, LOW);
-
-  Serial.println("ESP32 BLE Smart Home Starting...");
+  Serial.println("ESP32 BLE Smart Home (Multi-Room) Starting...");
+  Serial.println("Configured for 6 rooms");
 
   // Create BLE Device
   BLEDevice::init("HM-10");  // Name compatible with app filters
@@ -144,6 +178,8 @@ void setup() {
   BLEDevice::startAdvertising();
 
   Serial.println("Smart Home Ready! Waiting for connection...");
+  Serial.print("Default room: ");
+  Serial.println(currentRoom);
 }
 
 void loop() {
@@ -157,120 +193,173 @@ void loop() {
 }
 
 void handleCommand(char cmd) {
+  int room = currentRoom - 1;  // Convert to 0-indexed array
+
   switch(cmd) {
+    // Room selection (1-6)
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+      currentRoom = cmd - '0';  // Convert char to int
+      Serial.print("Switched to Room ");
+      Serial.println(currentRoom);
+      break;
+
     // LED control
     case 'L':  // LED ON
-      ledState = true;
-      digitalWrite(LED_PIN, HIGH);
-      Serial.println("LED ON");
+      ledState[room] = true;
+      digitalWrite(roomPins[room][PIN_LED], HIGH);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": LED ON");
       break;
 
     case 'l':  // LED OFF
-      ledState = false;
-      digitalWrite(LED_PIN, LOW);
-      Serial.println("LED OFF");
+      ledState[room] = false;
+      digitalWrite(roomPins[room][PIN_LED], LOW);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": LED OFF");
       break;
 
     // Window control
     case 'W':  // Window OPEN
-      windowState = true;
-      digitalWrite(WINDOW_PIN, HIGH);
-      Serial.println("Window OPEN");
+      windowState[room] = true;
+      digitalWrite(roomPins[room][PIN_WINDOW], HIGH);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": Window OPEN");
       break;
 
     case 'w':  // Window CLOSE
-      windowState = false;
-      digitalWrite(WINDOW_PIN, LOW);
-      Serial.println("Window CLOSE");
+      windowState[room] = false;
+      digitalWrite(roomPins[room][PIN_WINDOW], LOW);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": Window CLOSE");
       break;
 
     // Music control
     case 'M':  // Music ON
-      musicState = true;
-      digitalWrite(MUSIC_PIN, HIGH);
-      Serial.println("Music PLAY");
+      musicState[room] = true;
+      digitalWrite(roomPins[room][PIN_MUSIC], HIGH);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": Music PLAY");
       break;
 
     case 'm':  // Music OFF
-      musicState = false;
-      digitalWrite(MUSIC_PIN, LOW);
-      Serial.println("Music STOP");
+      musicState[room] = false;
+      digitalWrite(roomPins[room][PIN_MUSIC], LOW);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": Music STOP");
       break;
 
     // Door control
     case 'D':  // Door UNLOCK
-      doorLocked = false;
-      digitalWrite(DOOR_PIN, LOW);
-      Serial.println("Door UNLOCKED");
+      doorLocked[room] = false;
+      digitalWrite(roomPins[room][PIN_DOOR], LOW);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": Door UNLOCKED");
       break;
 
     case 'd':  // Door LOCK
-      doorLocked = true;
-      digitalWrite(DOOR_PIN, HIGH);
-      Serial.println("Door LOCKED");
+      doorLocked[room] = true;
+      digitalWrite(roomPins[room][PIN_DOOR], HIGH);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": Door LOCKED");
       break;
 
     // Fan control
     case 'F':  // Fan ON
-      fanState = true;
-      digitalWrite(FAN_PIN, HIGH);
-      Serial.println("Fan ON");
+      fanState[room] = true;
+      digitalWrite(roomPins[room][PIN_FAN], HIGH);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": Fan ON");
       break;
 
     case 'f':  // Fan OFF
-      fanState = false;
-      digitalWrite(FAN_PIN, LOW);
-      Serial.println("Fan OFF");
+      fanState[room] = false;
+      digitalWrite(roomPins[room][PIN_FAN], LOW);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": Fan OFF");
       break;
 
     // AC control
     case 'K':  // AC ON
-      acState = true;
-      digitalWrite(AC_PIN, HIGH);
-      Serial.println("AC ON");
+      acState[room] = true;
+      digitalWrite(roomPins[room][PIN_AC], HIGH);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": AC ON");
       break;
 
     case 'k':  // AC OFF
-      acState = false;
-      digitalWrite(AC_PIN, LOW);
-      Serial.println("AC OFF");
+      acState[room] = false;
+      digitalWrite(roomPins[room][PIN_AC], LOW);
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": AC OFF");
       break;
 
     case 'H':  // AC Heat mode
-      Serial.println("AC: Heat Mode");
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": AC Heat Mode");
       break;
 
     case 'C':  // AC Cool mode
-      Serial.println("AC: Cool Mode");
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": AC Cool Mode");
       break;
 
     case 'Y':  // AC Dry mode
-      Serial.println("AC: Dry Mode");
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": AC Dry Mode");
       break;
 
     case 'N':  // AC Fan mode
-      Serial.println("AC: Fan Mode");
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": AC Fan Mode");
       break;
 
     case 'Z':  // Temperature UP
-      if (acTemp < 30) {
-        acTemp++;
-        Serial.print("AC Temp: ");
-        Serial.println(acTemp);
+      if (acTemp[room] < 30) {
+        acTemp[room]++;
+        Serial.print("Room ");
+        Serial.print(currentRoom);
+        Serial.print(": AC Temp: ");
+        Serial.println(acTemp[room]);
       }
       break;
 
     case 'V':  // Temperature DOWN
-      if (acTemp > 16) {
-        acTemp--;
-        Serial.print("AC Temp: ");
-        Serial.println(acTemp);
+      if (acTemp[room] > 16) {
+        acTemp[room]--;
+        Serial.print("Room ");
+        Serial.print(currentRoom);
+        Serial.print(": AC Temp: ");
+        Serial.println(acTemp[room]);
       }
       break;
 
     // Temperature set (T16-T30)
     case 'T':
       // Next bytes would be temperature value
+      Serial.print("Room ");
+      Serial.print(currentRoom);
+      Serial.println(": AC Temp Set");
       break;
 
     default:

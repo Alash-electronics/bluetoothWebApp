@@ -57,6 +57,18 @@ export const SmartHomeRoomControl: React.FC<SmartHomeRoomControlProps> = ({
     setConnectionStatus(initialConnectionStatus);
   }, [initialConnectionStatus]);
 
+  // Отправляем ID комнаты при входе (для ESP32)
+  useEffect(() => {
+    // Извлекаем номер комнаты из roomId (room1 -> 1, room2 -> 2, и т.д.)
+    const roomNumber = _roomId.replace('room', '');
+
+    // Отправляем номер комнаты, если подключено
+    if (isConnected && roomNumber) {
+      console.log(`[SmartHomeRoomControl] Switching to room ${roomNumber}`);
+      bluetoothService.sendData(roomNumber);
+    }
+  }, [_roomId, isConnected]);
+
   useEffect(() => {
     // Подписываемся на изменения статуса подключения
     bluetoothService.onConnectionStatusChange((status) => {
