@@ -2,7 +2,7 @@
   "name": "ble-controller",
   "private": false,
   "version": "1.0.0",
-  "description": "Universal web-based Bluetooth controller for Arduino and embedded devices. Supports HC-06, HC-05, HM-10, ESP32 and other BLE/Bluetooth modules. Multiple control modes: Terminal, RC Car, Joystick, Smart Home",
+  "description": "Alashed BLE - Universal web-based Bluetooth controller for Arduino and embedded devices. Supports HC-06, HC-05, HM-10, ESP32 and other BLE/Bluetooth modules. Multiple control modes: Terminal, RC Car, Joystick, Smart Home",
   "type": "module",
   "author": "Alash Electronics",
   "license": "MIT",

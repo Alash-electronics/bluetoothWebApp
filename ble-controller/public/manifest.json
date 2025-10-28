@@ -1,6 +1,6 @@
 {
-  "name": "BLE Controller - Bluetooth Device Control",
-  "short_name": "BLE Controller",
+  "name": "Alashed BLE - Bluetooth Device Control",
+  "short_name": "Alashed BLE",
   "description": "Universal Bluetooth controller for Arduino and embedded devices. Supports HC-06, HC-05, HM-10, ESP32 and other BLE/Bluetooth modules.",
   "start_url": "/bluetoothWebApp/",
   "display": "standalone",
