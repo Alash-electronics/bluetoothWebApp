@@ -61,10 +61,6 @@ const unsigned long BTN_REPEAT = 0xFFFFFFFF; // Код повтора (игно�
 unsigned long lastIRSignalTime = 0;  // Время последнего IR сигнала (для auto-stop)
 const int IR_TIMEOUT = 200;  // Таймаут для IR (мс) - робот останавливается если сигнал не приходит
 
-// ==================== ПАРАМЕТРЫ ПЕРЕДАЧИ ДАННЫХ ДАТЧИКОВ ====================
-unsigned long lastSensorSend = 0;
-const int SENSOR_SEND_INTERVAL = 200;  // Отправка данных датчиков каждые 200мс (уменьшена нагрузка)
-
 // ==================== НАСТРОЙКИ МОТОРОВ ====================
 // Левый мотор (Motor B: D6, D8, D12)
 const uint8_t MOTOR_L_IN3 = 8;
@@ -147,11 +143,8 @@ const int SERVO_DETACH_DELAY = 20;      // Задержка после detach с
 const int INIT_SERVO_WAIT = 500;        // Задержка инициализации серво в автономных режимах (мс)
 const int SETUP_INIT_DELAY = 500;       // Задержка в конце setup() (мс)
 
-// ==================== ПАРАМЕТРЫ РУЧНОГО УПРАВЛЕНИЯ ====================
-// Safety timeout отключен - робот останавливается ТОЛЬКО при команде отпускания
-// unsigned long lastManualCommand = 0;
-// const int MANUAL_TIMEOUT = 5000;
-// bool isMoving = false;
+// ==================== ПАРАМЕТРЫ ТЕЛЕМЕТРИИ ====================
+// Телеметрия отправляется по запросу (кнопка 9) - один раз при нажатии
 
 // ==================== SETUP ====================
 void setup() {
@@ -224,8 +217,8 @@ void loop() {
       break;
   }
 
-  // === ОТПРАВКА ДАННЫХ ДАТЧИКОВ ===
-  sendSensorData();
+  // === ОТПРАВКА ДАННЫХ ДАТЧИКОВ ПО ЗАПРОСУ (кнопка 9) ===
+  // Данные отправляются только при нажатии кнопки 9, не автоматически
 }
 
 // ==================== ОБРАБОТКА КОМАНД BLUETOOTH ====================
@@ -258,13 +251,20 @@ void processCommand(char cmd) {
     return;
   }
 
-  // === ЭКСТРЕННЫЙ ОСТАНОВ (кнопка Y) ===
+  // === ЭКСТРЕННЫЙ ОСТАНОВ (кнопка 4) ===
   if (cmd == '4') {
     resetAutonomousModes();  // Полная очистка при переходе в ручной режим
     currentMode = MODE_MANUAL;
     stopMotors();
     Serial.println(F("[BT] E-STOP -> MANUAL"));
     bluetooth.println(F("STOP!"));
+    return;
+  }
+
+  // === ЗАПРОС ТЕЛЕМЕТРИИ (кнопка 9) - ОДИН РАЗ ===
+  if (cmd == '9') {
+    Serial.println(F("[BT] Sensor request"));
+    sendSensorDataOnce();  // Отправляем данные один раз
     return;
   }
 
@@ -518,28 +518,28 @@ void followLine() {
 
   // Случай 1: Центр на линии (0-1-0) → ПРЯМО
   if (!L && C && !R) {
-    motorLeft.setSpeed(-FORWARD_SPEED);
-    motorRight.setSpeed(-FORWARD_SPEED);
+    motorLeft.setSpeed(FORWARD_SPEED);
+    motorRight.setSpeed(FORWARD_SPEED);
   }
 
   // Случай 2: ЛЮБОЙ левый датчик видит линию → РЕЗКИЙ поворот налево с РЕВЕРСОМ
   else if (L) {
     // Левое колесо НАЗАД, правое колесо ВПЕРЁД
-    motorLeft.setSpeed(-REVERSE_SPEED);   // Реверс (отрицательное значение)
-    motorRight.setSpeed(-TURN_SPEED);     // Вперёд быстро
+    motorLeft.setSpeed(REVERSE_SPEED);   // Реверс (отрицательное значение)
+    motorRight.setSpeed(TURN_SPEED);     // Вперёд быстро
   }
 
   // Случай 3: ЛЮБОЙ правый датчик видит линию → РЕЗКИЙ поворот направо с РЕВЕРСОМ
   else if (R) {
     // Левое колесо ВПЕРЁД, правое колесо НАЗАД
-    motorLeft.setSpeed(-TURN_SPEED);      // Вперёд быстро
-    motorRight.setSpeed(-REVERSE_SPEED);  // Реверс (отрицательное значение)
+    motorLeft.setSpeed(TURN_SPEED);      // Вперёд быстро
+    motorRight.setSpeed(REVERSE_SPEED);  // Реверс (отрицательное значение)
   }
 
   // Случай 4: Линия потеряна (0-0-0) → медленно вперёд (поиск)
   else if (!L && !C && !R) {
-    motorLeft.setSpeed(-FORWARD_SPEED / 2);
-    motorRight.setSpeed(-FORWARD_SPEED / 2);
+    motorLeft.setSpeed(FORWARD_SPEED / 2);
+    motorRight.setSpeed(FORWARD_SPEED / 2);
   }
 
   // НЕТ delay()! Цикл работает максимально быстро для мгновенной реакции
@@ -776,42 +776,33 @@ void followHand() {
   // НЕТ delay()! Цикл выполняется максимально быстро
 }
 
-// ==================== ОТПРАВКА ДАННЫХ ДАТЧИКОВ ====================
-void sendSensorData() {
-  // Отправляем данные датчиков только в ручном режиме, чтобы не мешать автономным режимам
-  if (currentMode != MODE_MANUAL) return;
+// ==================== ОТПРАВКА ДАННЫХ ДАТЧИКОВ ОДИН РАЗ ====================
+void sendSensorDataOnce() {
+  // Читаем датчики линии (быстрые аналоговые операции)
+  int lineLeft = analogRead(LINE_LEFT);
+  int lineCenter = analogRead(LINE_CENTER);
+  int lineRight = analogRead(LINE_RIGHT);
 
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastSensorSend >= SENSOR_SEND_INTERVAL) {
-    lastSensorSend = currentMillis;
+  // Читаем ультразвуковой датчик
+  float distance = ultrasonic.getDistance();
 
-    // ВАЖНО: Проверяем входящие команды ПЕРЕД отправкой данных!
-    // Это гарантирует, что команды остановки обрабатываются приоритетно
-    while (bluetooth.available()) {
-      char cmd = bluetooth.read();
-      processCommand(cmd);
-    }
+  // Отправляем данные максимально компактно
+  bluetooth.print(F("S1:"));
+  bluetooth.print((int)distance);
+  bluetooth.print(F("\nS2:"));
+  bluetooth.print(lineLeft);
+  bluetooth.print(F("\nS3:"));
+  bluetooth.print(lineCenter);
+  bluetooth.print(F("\nS4:"));
+  bluetooth.println(lineRight);
 
-    // Читаем датчики линии (быстрые аналоговые операции)
-    int lineLeft = analogRead(LINE_LEFT);
-    int lineCenter = analogRead(LINE_CENTER);
-    int lineRight = analogRead(LINE_RIGHT);
-
-    // Читаем ультразвуковой датчик (может быть медленным из-за pulseIn)
-    // Используем короткий таймаут для getDistance()
-    float distance = ultrasonic.getDistance();
-
-    // Отправляем данные максимально компактно
-    bluetooth.print(F("S1:"));
-    bluetooth.print((int)distance);
-    bluetooth.print(F("\nS2:"));
-    bluetooth.print(lineLeft);
-    bluetooth.print(F("\nS3:"));
-    bluetooth.print(lineCenter);
-    bluetooth.print(F("\nS4:"));
-    bluetooth.println(lineRight);
-
-    // Принудительно сбрасываем буфер для быстрой отправки
-    bluetooth.flush();
-  }
+  // Дублируем в Serial Monitor для отладки
+  Serial.print(F("Sensors: D="));
+  Serial.print((int)distance);
+  Serial.print(F(" L="));
+  Serial.print(lineLeft);
+  Serial.print(F(" C="));
+  Serial.print(lineCenter);
+  Serial.print(F(" R="));
+  Serial.println(lineRight);
 }

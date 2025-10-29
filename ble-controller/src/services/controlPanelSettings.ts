@@ -29,7 +29,7 @@ export const DEFAULT_CONTROL_BUTTONS: ControlButtonConfig[] = [
   { id: 'macro3', label: '6', pressCommand: '6', releaseCommand: '^' },
   { id: 'macro4', label: '7', pressCommand: '7', releaseCommand: '&' },
   { id: 'macro5', label: '8', pressCommand: '8', releaseCommand: '*' },
-  { id: 'macro6', label: '9', pressCommand: '9', releaseCommand: '(' },
+  { id: 'macro6', label: '9 (Датчики)', pressCommand: '9', releaseCommand: '' },  // Request sensor data once
 ];
 
 class ControlPanelSettingsService {
