@@ -726,6 +726,132 @@ Web Bluetooth API support:
 - ✅ Chrome 56+ (desktop & Android)
 - ✅ Edge 79+
 - ✅ Opera 43+
+- ✅ iOS (via [Bluefy Browser](https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055) - free third-party browser with Web Bluetooth)
 - ❌ Firefox (no Web Bluetooth support)
 - ❌ Safari (no Web Bluetooth support)
-- ❌ iOS (no Web Bluetooth support)
+
+**Important for iOS:** Safari does not support Web Bluetooth API. Users must install Bluefy Browser from App Store to use the web app on iPhone/iPad.
+
+## Communication Protocol for Arduino/ESP32
+
+This section is essential for AI assistants generating Arduino code. The app sends commands via Bluetooth UART.
+
+### RC Car Control Protocol
+
+**Press & Release Commands:** Each button sends TWO commands (when pressed and when released).
+
+**Default Button Mapping:**
+
+| Button | Press | Release | Description |
+|--------|-------|---------|-------------|
+| **WASD Group** ||||
+| W | `W` | `w` | Forward |
+| A | `A` | `a` | Left |
+| S | `S` | `s` | Backward |
+| D | `D` | `d` | Right |
+| **Arrows Group** ||||
+| ↑ Forward | `F` | `f` | Forward |
+| ← Left | `L` | `l` | Left |
+| → Right | `R` | `r` | Right |
+| ↓ Backward | `B` | `b` | Backward |
+| **Center Buttons** ||||
+| Button 1 | `1` | `!` | Customizable |
+| Button 2 | `2` | `@` | Customizable |
+| Button 3 | `3` | `#` | Customizable |
+| Button 4 | `4` | `$` | Customizable |
+| Button 5 | `5` | `%` | Customizable |
+| Button 6 | `6` | `^` | Customizable |
+| Button 7 | `7` | `&` | Customizable |
+| Button 8 | `8` | `*` | Customizable |
+| Button 9 | `9` | _(none)_ | Request sensor data |
+
+**Arduino Pattern:**
+```cpp
+switch(cmd) {
+  case 'W': forward(); break;   // Press - start movement
+  case 'w': stop(); break;       // Release - stop movement
+  case 'A': left(); break;
+  case 'a': stop(); break;
+  // etc...
+}
+```
+
+### Terminal Mode Protocol
+
+**Format:** Text + `\n` (newline)
+
+**Default Macro Buttons (M1-M6):**
+- Configurable commands sent with newline terminator
+- Examples: `AT`, `LED_ON`, `STATUS`, `BATTERY`
+
+### Smart Home Protocol
+
+**Devices (App → Arduino):**
+
+| Device | ON Command | OFF Command |
+|--------|------------|-------------|
+| LED | `L` | `l` |
+| Window | `W` | `w` |
+| Music | `M` | `m` |
+| Door | `D` | `d` |
+| Fan | `F` | `f` |
+| AC | `K` | `L` |
+
+**Sensors (Arduino → App):**
+
+| Sensor | Detected | Not Detected |
+|--------|----------|--------------|
+| Motion | `P` | `p` |
+| Gas | `G` | `g` |
+| Rain | `R` | `r` |
+
+**Important:** Sensors send data FROM Arduino TO app (opposite direction).
+
+**AC Commands:**
+- `K` / `L` - On/Off
+- `H` - Heat mode
+- `C` - Cool mode
+- `Y` - Dry mode
+- `N` - Fan mode
+- `Z` / `V` - Temperature +/-
+- `T24` - Set temperature to 24°C (16-30°C range)
+
+**Room Selection:**
+- Send `1`-`6` to switch rooms
+
+### Joystick Protocol
+
+**Format:** `J:LY,LX,RY,RX\n`
+
+**Values:** 0-100 (50 = center)
+- LY = Left Y (0=down, 50=center, 100=up)
+- LX = Left X (0=left, 50=center, 100=right)
+- RY = Right Y (0=down, 50=center, 100=up)
+- RX = Right X (0=left, 50=center, 100=right)
+
+**Examples:**
+- `J:50,50,50,50` - Stop (both centered)
+- `J:100,50,50,50` - Forward (left up)
+- `J:50,50,50,100` - Turn right (right joystick right)
+
+**Frequency:** 20 Hz (50ms interval) when moving, immediate stop when released
+
+**Gamepad Buttons:** 16 buttons send single characters (configurable in settings)
+- Triangle, Circle, Cross, Square
+- L1, R1, L2, R2
+- D-Pad (up, down, left, right)
+- L3, R3, Select, Start
+
+## Screenshots
+
+The `screenshots/` directory contains UI screenshots used in README.md:
+
+- `device-selection.png` - Main mode selection screen
+- `choose-device.png` - Bluetooth device picker dialog
+- `joystick-panel.png` - Dual joystick interface (landscape)
+- `control-panel.png` - RC car WASD controls (landscape)
+- `terminal-panel.png` - Terminal with macro buttons (portrait)
+- `smart-home-rooms.png` - Room selection (portrait)
+- `smart-home-room-control.png` - Room device controls (portrait)
+
+These screenshots demonstrate the UI for developers and are embedded in README.md for documentation.
