@@ -79,33 +79,82 @@ void loop() {
         RY = values[2];
         RX = values[3];
         
-        // Управление
-        int throttle = LY - 50;
-        int steering = LX - 50;
-        
-        Serial.print("CONTROL: throttle=");
+        // Векторное управление двумя джойстиками
+        // Левый джойстик Y (LY) → throttle (вперед/назад)
+        // Правый джойстик X (RX) → steering (поворот)
+
+        int throttle = LY - 50;  // Левый Y: -50..50
+        int steering = RX - 50;  // Правый X: -50..50
+
+        Serial.print("CONTROL RAW: throttle=");
         Serial.print(throttle);
         Serial.print(" steering=");
         Serial.println(steering);
-        
-        // С минимальной deadzone для теста
-        if (abs(throttle) < 3) throttle = 0;
-        if (abs(steering) < 3) steering = 0;
-        
-        // Расчет скоростей
+
+        // Применяем deadzone
+        if (abs(throttle) < 10) throttle = 0;
+        if (abs(steering) < 10) steering = 0;
+
+        Serial.print("CONTROL AFTER DEADZONE: throttle=");
+        Serial.print(throttle);
+        Serial.print(" steering=");
+        Serial.println(steering);
+
+        // Векторное управление с микшированием
         if (throttle == 0 && steering == 0) {
           Serial.println(">>> SHOULD STOP!");
           leftSpeed = 0;
           rightSpeed = 0;
         } else {
-          int base = map(abs(throttle), 0, 50, 0, 200);
+          // Константы для моторов (AlashMotorControlLite принимает -100..100)
+          const int MIN_MOTOR_SPEED = 50;   // Минимальная скорость для движения
+          const int MAX_MOTOR_SPEED = 100;  // Максимальная скорость 100%
+
+          // Масштабируем входы с учетом MIN_MOTOR_SPEED
+          float throttleF, steeringF;
+
           if (throttle > 0) {
-            leftSpeed = -base;
-            rightSpeed = -base;
+            throttleF = map(throttle, 10, 50, MIN_MOTOR_SPEED, MAX_MOTOR_SPEED);
           } else if (throttle < 0) {
-            leftSpeed = base;
-            rightSpeed = base;
+            throttleF = map(throttle, -50, -10, -MAX_MOTOR_SPEED, -MIN_MOTOR_SPEED);
+          } else {
+            throttleF = 0;
           }
+
+          if (steering > 0) {
+            steeringF = map(steering, 10, 50, MIN_MOTOR_SPEED/2, MAX_MOTOR_SPEED);
+          } else if (steering < 0) {
+            steeringF = map(steering, -50, -10, -MAX_MOTOR_SPEED, -MIN_MOTOR_SPEED/2);
+          } else {
+            steeringF = 0;
+          }
+
+          // Векторное микширование (arcade drive)
+          float leftF = throttleF + steeringF;
+          float rightF = throttleF - steeringF;
+
+          // Нормализация если превышает диапазон
+          float maxMagnitude = max(abs(leftF), abs(rightF));
+          if (maxMagnitude > MAX_MOTOR_SPEED) {
+            leftF = leftF / maxMagnitude * MAX_MOTOR_SPEED;
+            rightF = rightF / maxMagnitude * MAX_MOTOR_SPEED;
+          }
+
+          leftSpeed = (int)leftF;
+          rightSpeed = (int)rightF;
+
+          // Применяем минимальный порог
+          if (abs(leftSpeed) > 0 && abs(leftSpeed) < MIN_MOTOR_SPEED) {
+            leftSpeed = leftSpeed > 0 ? MIN_MOTOR_SPEED : -MIN_MOTOR_SPEED;
+          }
+          if (abs(rightSpeed) > 0 && abs(rightSpeed) < MIN_MOTOR_SPEED) {
+            rightSpeed = rightSpeed > 0 ? MIN_MOTOR_SPEED : -MIN_MOTOR_SPEED;
+          }
+
+          // Ограничиваем диапазон -100..100 (требование библиотеки)
+          leftSpeed = constrain(leftSpeed, -MAX_MOTOR_SPEED, MAX_MOTOR_SPEED);
+          rightSpeed = constrain(rightSpeed, -MAX_MOTOR_SPEED, MAX_MOTOR_SPEED);
+
           Serial.print(">>> SHOULD MOVE: L=");
           Serial.print(leftSpeed);
           Serial.print(" R=");

@@ -2,4 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Отключаем tap highlight на iOS */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* Глобальные стили убраны - overflow/touch-action применяются только в JoystickPanel */

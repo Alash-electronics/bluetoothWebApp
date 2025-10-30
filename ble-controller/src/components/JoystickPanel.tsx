@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { bluetoothService, type ConnectionStatus } from '../services/bluetoothService';
 import { appSettings } from '../services/appSettings';
 import { localization } from '../services/localization';
@@ -32,6 +32,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
   const [isDraggingRight, setIsDraggingRight] = useState(false);
   const lastCommandRef = useRef<string>('');
   const lastSendTimeRef = useRef<number>(0);
+  const wasMovingRef = useRef<boolean>(false); // Отслеживаем был ли джойстик в движении
   const prevButtonsRef = useRef<boolean[]>(new Array(18).fill(false));
   const prevL2ValueRef = useRef<number>(0);
   const prevR2ValueRef = useRef<number>(0);
@@ -47,13 +48,52 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
   const [r2Value, setR2Value] = useState(0); // 0-100
   const [isPortrait, setIsPortrait] = useState(false);
 
+  // Refs для джойстиков (для нативных событий с passive: false)
+  const leftJoystickBgRef = useRef<SVGCircleElement>(null);
+  const leftJoystickStickRef = useRef<SVGCircleElement>(null);
+  const rightJoystickBgRef = useRef<SVGCircleElement>(null);
+  const rightJoystickStickRef = useRef<SVGCircleElement>(null);
+
+  // Refs для state (чтобы обработчики всегда читали актуальные значения)
+  const isDraggingLeftRef = useRef(isDraggingLeft);
+  const isDraggingRightRef = useRef(isDraggingRight);
+  const gamepadConnectedRef = useRef(gamepadConnected);
+  const isConnectedRef = useRef(isConnected);
+  const leftJoystickPosRef = useRef(leftJoystickPos);
+  const rightJoystickPosRef = useRef(rightJoystickPos);
+
+  // Обновляем refs при изменении state
+  useEffect(() => {
+    isDraggingLeftRef.current = isDraggingLeft;
+  }, [isDraggingLeft]);
+
+  useEffect(() => {
+    isDraggingRightRef.current = isDraggingRight;
+  }, [isDraggingRight]);
+
+  useEffect(() => {
+    gamepadConnectedRef.current = gamepadConnected;
+  }, [gamepadConnected]);
+
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
+
+  useEffect(() => {
+    leftJoystickPosRef.current = leftJoystickPos;
+  }, [leftJoystickPos]);
+
+  useEffect(() => {
+    rightJoystickPosRef.current = rightJoystickPos;
+  }, [rightJoystickPos]);
+
   // Отслеживание ориентации - блокировка вертикального режима
   useEffect(() => {
     const checkOrientation = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const isPortraitNow = height > width && height < 1024;
-      console.log('JoystickPanel orientation:', { width, height, isPortraitNow });
+      // console.log('JoystickPanel orientation:', { width, height, isPortraitNow });
       setIsPortrait(isPortraitNow);
     };
 
@@ -191,18 +231,22 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
         // PlayStation контроллер: axes[0]=LX, axes[1]=LY, axes[2]=RX, axes[3]=RY
         // Значения от -1 до 1, где -1 это влево/вверх, +1 это вправо/вниз
 
-        const deadzone = 0.1; // Мертвая зона для избежания дрейфа
+        const deadzone = 0.15; // Увеличенная мертвая зона для предотвращения дрейфа
 
         let lx = gamepad.axes[0] || 0;
         let ly = gamepad.axes[1] || 0;
         let rx = gamepad.axes[2] || 0;
         let ry = gamepad.axes[3] || 0;
 
+        // console.log(`[GAMEPAD] Raw axes: LX=${lx.toFixed(3)}, LY=${ly.toFixed(3)}, RX=${rx.toFixed(3)}, RY=${ry.toFixed(3)}`);
+
         // Применяем deadzone
         lx = Math.abs(lx) < deadzone ? 0 : lx;
         ly = Math.abs(ly) < deadzone ? 0 : ly;
         rx = Math.abs(rx) < deadzone ? 0 : rx;
         ry = Math.abs(ry) < deadzone ? 0 : ry;
+
+        // console.log(`[GAMEPAD] After deadzone: LX=${lx.toFixed(3)}, LY=${ly.toFixed(3)}, RX=${rx.toFixed(3)}, RY=${ry.toFixed(3)}`);
 
         // Обновляем позиции виртуальных джойстиков для визуализации
         setLeftJoystickPos({ x: lx, y: ly });
@@ -239,6 +283,55 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
   useEffect(() => {
     if (!isConnected) return;
 
+    // ВАЖНО: Отправляем данные джойстиков ТОЛЬКО если:
+    // 1. Хотя бы один джойстик в состоянии dragging ИЛИ
+    // 2. Подключен физический геймпад
+    // Это предотвращает отправку старых значений после TouchEnd
+    // ИСПОЛЬЗУЕМ REFS чтобы читать актуальные значения синхронно
+    const isDraggingLeftNow = isDraggingLeftRef.current;
+    const isDraggingRightNow = isDraggingRightRef.current;
+    const gamepadConnectedNow = gamepadConnectedRef.current;
+
+    // console.log(`[useEffect] Dragging check: Left=${isDraggingLeftNow}, Right=${isDraggingRightNow}, Gamepad=${gamepadConnectedNow}`);
+
+    // НОВАЯ ЛОГИКА: Используем REFS для чтения актуальных позиций синхронно
+    const leftPos = leftJoystickPosRef.current;
+    const rightPos = rightJoystickPosRef.current;
+
+    const leftInCenter = Math.abs(leftPos.x) < 0.05 && Math.abs(leftPos.y) < 0.05;
+    const rightInCenter = Math.abs(rightPos.x) < 0.05 && Math.abs(rightPos.y) < 0.05;
+    const bothCentered = leftInCenter && rightInCenter;
+
+    // console.log(`[useEffect] Positions from REF: L(${leftPos.x.toFixed(2)},${leftPos.y.toFixed(2)}) R(${rightPos.x.toFixed(2)},${rightPos.y.toFixed(2)}) centered=${bothCentered} wasMoving=${wasMovingRef.current}`);
+
+    if (!gamepadConnectedNow) {
+      // Touch режим: отправляем только при активном перетаскивании
+      if (!isDraggingLeftNow && !isDraggingRightNow) {
+        // console.log('[useEffect] SKIPPING send - no touch joystick is dragging');
+        wasMovingRef.current = false;
+        return;
+      }
+      wasMovingRef.current = true;
+    } else {
+      // Gamepad режим: проверяем переход из движения в центр
+      if (bothCentered) {
+        if (wasMovingRef.current) {
+          // ПЕРЕХОД: был в движении, теперь в центре → отправить STOP команду ОДИН РАЗ
+          // console.log('[useEffect] STOP transition detected - sending J:50,50,50,50 once');
+          bluetoothService.sendData('J:50,50,50,50\n');
+          lastCommandRef.current = 'J:50,50,50,50';
+          lastSendTimeRef.current = Date.now();
+          wasMovingRef.current = false;
+        } else {
+          // console.log('[useEffect] SKIPPING send - gamepad joysticks centered and not moving');
+        }
+        return;
+      }
+      wasMovingRef.current = true;
+    }
+
+    // console.log('[useEffect] WILL send - joystick movement detected');
+
     // Левый джойстик: LY (Left Y), LX (Left X)
     // Правый джойстик: RY (Right Y), RX (Right X)
 
@@ -246,13 +339,17 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
     // Y оси: -1 (вверх) -> 100, 0 (центр) -> 50, +1 (вниз) -> 0
     // X оси: -1 (влево) -> 0, 0 (центр) -> 50, +1 (вправо) -> 100
 
+    // ИСПОЛЬЗУЕМ REFS для синхронного чтения позиций
+    const currentLeftPos = leftJoystickPosRef.current;
+    const currentRightPos = rightJoystickPosRef.current;
+
     // Левый джойстик
-    const lyValue = Math.round(50 - leftJoystickPos.y * 50); // Вверх = 100, вниз = 0
-    const lxValue = Math.round(50 + leftJoystickPos.x * 50); // Вправо = 100, влево = 0
+    const lyValue = Math.round(50 - currentLeftPos.y * 50); // Вверх = 100, вниз = 0
+    const lxValue = Math.round(50 + currentLeftPos.x * 50); // Вправо = 100, влево = 0
 
     // Правый джойстик
-    const ryValue = Math.round(50 - rightJoystickPos.y * 50); // Вверх = 100, вниз = 0
-    const rxValue = Math.round(50 + rightJoystickPos.x * 50); // Вправо = 100, влево = 0
+    const ryValue = Math.round(50 - currentRightPos.y * 50); // Вверх = 100, вниз = 0
+    const rxValue = Math.round(50 + currentRightPos.x * 50); // Вправо = 100, влево = 0
 
     // Ограничиваем значения в диапазоне 0-100
     const ly = Math.max(0, Math.min(100, lyValue));
@@ -270,6 +367,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
 
     // Отправляем джойстики только если изменились И прошло достаточно времени
     if (joystickCommand !== lastCommandRef.current && timeSinceLastSend >= JOYSTICK_INTERVAL) {
+      // console.log(`[JOYSTICK] Sending: ${joystickCommand}, Left: {x:${currentLeftPos.x.toFixed(3)}, y:${currentLeftPos.y.toFixed(3)}}, Right: {x:${currentRightPos.x.toFixed(3)}, y:${currentRightPos.y.toFixed(3)}}`);
       bluetoothService.sendData(joystickCommand + '\n');
       lastCommandRef.current = joystickCommand;
       lastSendTimeRef.current = now;
@@ -326,6 +424,93 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
 
   }, [leftJoystickPos, rightJoystickPos, buttons, l2Value, r2Value, isConnected]);
 
+  // Нативные touch события для джойстиков с { passive: false }
+  useEffect(() => {
+    const leftBg = leftJoystickBgRef.current;
+    const leftStick = leftJoystickStickRef.current;
+    const rightBg = rightJoystickBgRef.current;
+    const rightStick = rightJoystickStickRef.current;
+
+    console.log('[JOYSTICK EFFECT] Setting up event listeners, refs:', { leftBg: !!leftBg, leftStick: !!leftStick, rightBg: !!rightBg, rightStick: !!rightStick });
+
+    if (!leftBg || !leftStick || !rightBg || !rightStick) {
+      console.error('[JOYSTICK EFFECT] Missing refs!');
+      return;
+    }
+
+    // Обработчики для левого джойстика
+    const leftStartHandler = (e: TouchEvent) => handleJoystickTouchStart(e, true);
+    const leftMoveHandler = (e: TouchEvent) => handleJoystickTouchMove(e, true);
+
+    // Обработчики для правого джойстика
+    const rightStartHandler = (e: TouchEvent) => handleJoystickTouchStart(e, false);
+    const rightMoveHandler = (e: TouchEvent) => handleJoystickTouchMove(e, false);
+
+    // Глобальный обработчик touchend/touchcancel для гарантии отпускания джойстиков
+    const globalTouchEnd = (e: TouchEvent) => {
+      // console.log('[GLOBAL] TouchEnd event fired, changedTouches:', e.changedTouches.length, 'Left ID:', leftTouchIdRef.current, 'Right ID:', rightTouchIdRef.current);
+
+      // Проверяем какой джойстик отслеживает этот touch ID
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        // console.log(`[GLOBAL] Checking touch ${i}: identifier=${touch.identifier}`);
+
+        if (leftTouchIdRef.current === touch.identifier) {
+          // console.log('[GLOBAL] Matched LEFT joystick, calling handleJoystickTouchEnd(true)');
+          handleJoystickTouchEnd(true);
+        }
+        if (rightTouchIdRef.current === touch.identifier) {
+          // console.log('[GLOBAL] Matched RIGHT joystick, calling handleJoystickTouchEnd(false)');
+          handleJoystickTouchEnd(false);
+        }
+      }
+    };
+
+    const options = { passive: false };
+
+    // Левый джойстик - фон
+    leftBg.addEventListener('touchstart', leftStartHandler, options);
+    leftBg.addEventListener('touchmove', leftMoveHandler, options);
+
+    // Левый джойстик - стик
+    leftStick.addEventListener('touchstart', leftStartHandler, options);
+    leftStick.addEventListener('touchmove', leftMoveHandler, options);
+
+    // Правый джойстик - фон
+    rightBg.addEventListener('touchstart', rightStartHandler, options);
+    rightBg.addEventListener('touchmove', rightMoveHandler, options);
+
+    // Правый джойстик - стик
+    rightStick.addEventListener('touchstart', rightStartHandler, options);
+    rightStick.addEventListener('touchmove', rightMoveHandler, options);
+
+    // Глобальные слушатели для touchend/touchcancel (чтобы джойстик вернулся в центр даже если палец ушел за пределы)
+    document.addEventListener('touchend', globalTouchEnd);
+    document.addEventListener('touchcancel', globalTouchEnd);
+
+    console.log('[JOYSTICK EFFECT] Event listeners set up successfully');
+
+    return () => {
+      // Cleanup - левый джойстик
+      leftBg.removeEventListener('touchstart', leftStartHandler);
+      leftBg.removeEventListener('touchmove', leftMoveHandler);
+
+      leftStick.removeEventListener('touchstart', leftStartHandler);
+      leftStick.removeEventListener('touchmove', leftMoveHandler);
+
+      // Cleanup - правый джойстик
+      rightBg.removeEventListener('touchstart', rightStartHandler);
+      rightBg.removeEventListener('touchmove', rightMoveHandler);
+
+      rightStick.removeEventListener('touchstart', rightStartHandler);
+      rightStick.removeEventListener('touchmove', rightMoveHandler);
+
+      // Cleanup - глобальные слушатели
+      document.removeEventListener('touchend', globalTouchEnd);
+      document.removeEventListener('touchcancel', globalTouchEnd);
+    };
+  }, []); // Пустые зависимости - listeners создаются один раз при монтировании
+
   // Обработчик виртуальных кликов по кнопкам
   const handleButtonClick = (buttonIndex: number) => {
     if (!isConnected || gamepadConnected) return;
@@ -359,14 +544,15 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
 
   // Обработчик для touch событий (предотвращает клик дважды)
   const handleButtonTouch = (e: React.TouchEvent, buttonIndex: number) => {
-    e.preventDefault();
+    // Убрали preventDefault() чтобы избежать ошибок с passive event listeners
     e.stopPropagation();
     handleButtonClick(buttonIndex);
   };
 
   // Обработчики для перетаскивания джойстиков на визуальном контроллере
-  const handleJoystickTouchStart = (e: React.TouchEvent, isLeft: boolean) => {
-    if (gamepadConnected || !isConnected) return;
+  const handleJoystickTouchStart = useCallback((e: TouchEvent, isLeft: boolean) => {
+    console.log(`[TOUCH START] ${isLeft ? 'LEFT' : 'RIGHT'} joystick, touches:`, e.touches.length, 'gamepad:', gamepadConnectedRef.current, 'connected:', isConnectedRef.current);
+    if (gamepadConnectedRef.current || !isConnectedRef.current) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -380,7 +566,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
       const t = e.touches[i];
       const otherTouchId = isLeft ? rightTouchIdRef.current : leftTouchIdRef.current;
       if (t.identifier !== otherTouchId) {
-        touch = t as Touch;
+        touch = t;
         break;
       }
     }
@@ -394,7 +580,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
       rightTouchIdRef.current = touch.identifier;
     }
 
-    const svg = (e.currentTarget as SVGElement).ownerSVGElement;
+    const svg = (e.target as SVGElement).ownerSVGElement;
     if (!svg) return;
 
     const pt = svg.createSVGPoint();
@@ -421,19 +607,25 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
     normalizedX = Math.max(-1, Math.min(1, normalizedX));
     normalizedY = Math.max(-1, Math.min(1, normalizedY));
 
+    console.log(`[TOUCH START] Setting position: ${isLeft ? 'LEFT' : 'RIGHT'} x=${normalizedX.toFixed(2)}, y=${normalizedY.toFixed(2)}`);
+
     if (isLeft) {
+      leftJoystickPosRef.current = { x: normalizedX, y: normalizedY };
       setLeftJoystickPos({ x: normalizedX, y: normalizedY });
+      isDraggingLeftRef.current = true;
       setIsDraggingLeft(true);
     } else {
+      rightJoystickPosRef.current = { x: normalizedX, y: normalizedY };
       setRightJoystickPos({ x: normalizedX, y: normalizedY });
+      isDraggingRightRef.current = true;
       setIsDraggingRight(true);
     }
     appSettings.vibrate(10);
-  };
+  }, []); // Пустые зависимости - функция не пересоздается
 
-  const handleJoystickTouchMove = (e: React.TouchEvent, isLeft: boolean) => {
-    if (gamepadConnected || !isConnected) return;
-    if ((isLeft && !isDraggingLeft) || (!isLeft && !isDraggingRight)) return;
+  const handleJoystickTouchMove = useCallback((e: TouchEvent, isLeft: boolean) => {
+    if (gamepadConnectedRef.current || !isConnectedRef.current) return;
+    if ((isLeft && !isDraggingLeftRef.current) || (!isLeft && !isDraggingRightRef.current)) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -445,14 +637,14 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
     let touch: Touch | null = null;
     for (let i = 0; i < e.touches.length; i++) {
       if (e.touches[i].identifier === touchId) {
-        touch = e.touches[i] as Touch;
+        touch = e.touches[i];
         break;
       }
     }
 
     if (!touch) return;
 
-    const svg = (e.currentTarget as SVGElement).ownerSVGElement;
+    const svg = (e.target as SVGElement).ownerSVGElement;
     if (!svg) return;
 
     const pt = svg.createSVGPoint();
@@ -484,21 +676,179 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
     } else {
       setRightJoystickPos({ x: normalizedX, y: normalizedY });
     }
-  };
+  }, []); // Пустые зависимости - функция не пересоздается
 
-  const handleJoystickTouchEnd = (isLeft: boolean) => {
-    if (gamepadConnected) return;
+  const handleJoystickTouchEnd = useCallback((isLeft: boolean) => {
+    if (gamepadConnectedRef.current) return;
+
+    // console.log(`[JOYSTICK] TouchEnd: ${isLeft ? 'LEFT' : 'RIGHT'}`);
 
     if (isLeft) {
+      // console.log('[JOYSTICK] Resetting left joystick to center');
+      // ВАЖНО: Обновляем refs СИНХРОННО перед setState чтобы useEffect увидел новые значения
+      isDraggingLeftRef.current = false;
+      leftJoystickPosRef.current = { x: 0, y: 0 };
+      leftTouchIdRef.current = null; // Очищаем touch ID
+      // Теперь обновляем state для UI
       setIsDraggingLeft(false);
       setLeftJoystickPos({ x: 0, y: 0 });
-      leftTouchIdRef.current = null; // Очищаем touch ID
     } else {
+      // console.log('[JOYSTICK] Resetting right joystick to center');
+      // ВАЖНО: Обновляем refs СИНХРОННО перед setState чтобы useEffect увидел новые значения
+      isDraggingRightRef.current = false;
+      rightJoystickPosRef.current = { x: 0, y: 0 };
+      rightTouchIdRef.current = null; // Очищаем touch ID
+      // Теперь обновляем state для UI
       setIsDraggingRight(false);
       setRightJoystickPos({ x: 0, y: 0 });
-      rightTouchIdRef.current = null; // Очищаем touch ID
     }
+
+    // ВАЖНО: Отправляем stop-команду СРАЗУ (обход throttling)
+    // Используем фиксированные значения 50 (центр) для отпущенного джойстика
+    // Для другого джойстика берем текущие значения
+    let ly, lx, ry, rx;
+
+    if (isLeft) {
+      // Левый джойстик отпущен - центр (50,50)
+      ly = 50;
+      lx = 50;
+      // Правый джойстик - текущая позиция (читаем из ref)
+      ry = Math.max(0, Math.min(100, Math.round(50 - rightJoystickPosRef.current.y * 50)));
+      rx = Math.max(0, Math.min(100, Math.round(50 + rightJoystickPosRef.current.x * 50)));
+    } else {
+      // Левый джойстик - текущая позиция (читаем из ref)
+      ly = Math.max(0, Math.min(100, Math.round(50 - leftJoystickPosRef.current.y * 50)));
+      lx = Math.max(0, Math.min(100, Math.round(50 + leftJoystickPosRef.current.x * 50)));
+      // Правый джойстик отпущен - центр (50,50)
+      ry = 50;
+      rx = 50;
+    }
+
+    const stopCommand = `J:${ly},${lx},${ry},${rx}`;
+    // console.log(`[JOYSTICK] Sending STOP command immediately: ${stopCommand}`);
+
+    if (isConnectedRef.current) {
+      bluetoothService.sendData(stopCommand + '\n');
+      lastCommandRef.current = stopCommand;
+      lastSendTimeRef.current = Date.now();
+    }
+
     appSettings.vibrate(15);
+  }, []); // Пустые зависимости - функция не пересоздается
+
+  // Mouse обработчики для десктопа
+  const handleJoystickMouseDown = (e: React.MouseEvent<SVGCircleElement>, isLeft: boolean) => {
+    if (gamepadConnected || !isConnected) return;
+    e.preventDefault();
+
+    const svg = (e.target as SVGElement).ownerSVGElement;
+    if (!svg) return;
+
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const svgPt = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+
+    const centerX = isLeft ? 340 : 860;
+    const centerY = 400;
+    const maxDist = 60;
+
+    const deltaX = svgPt.x - centerX;
+    const deltaY = svgPt.y - centerY;
+    const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    let normalizedX = deltaX / maxDist;
+    let normalizedY = deltaY / maxDist;
+
+    if (dist > maxDist) {
+      normalizedX = (deltaX / dist);
+      normalizedY = (deltaY / dist);
+    }
+
+    normalizedX = Math.max(-1, Math.min(1, normalizedX));
+    normalizedY = Math.max(-1, Math.min(1, normalizedY));
+
+    if (isLeft) {
+      leftJoystickPosRef.current = { x: normalizedX, y: normalizedY };
+      setLeftJoystickPos({ x: normalizedX, y: normalizedY });
+      isDraggingLeftRef.current = true;
+      setIsDraggingLeft(true);
+    } else {
+      rightJoystickPosRef.current = { x: normalizedX, y: normalizedY };
+      setRightJoystickPos({ x: normalizedX, y: normalizedY });
+      isDraggingRightRef.current = true;
+      setIsDraggingRight(true);
+    }
+  };
+
+  const handleJoystickMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (gamepadConnected || !isConnected) return;
+    if (!isDraggingLeft && !isDraggingRight) return;
+
+    const svg = e.currentTarget;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const svgPt = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+
+    if (isDraggingLeft) {
+      const centerX = 340;
+      const centerY = 400;
+      const maxDist = 60;
+
+      const deltaX = svgPt.x - centerX;
+      const deltaY = svgPt.y - centerY;
+      const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+      let normalizedX = deltaX / maxDist;
+      let normalizedY = deltaY / maxDist;
+
+      if (dist > maxDist) {
+        normalizedX = (deltaX / dist);
+        normalizedY = (deltaY / dist);
+      }
+
+      normalizedX = Math.max(-1, Math.min(1, normalizedX));
+      normalizedY = Math.max(-1, Math.min(1, normalizedY));
+
+      leftJoystickPosRef.current = { x: normalizedX, y: normalizedY };
+      setLeftJoystickPos({ x: normalizedX, y: normalizedY });
+    }
+
+    if (isDraggingRight) {
+      const centerX = 860;
+      const centerY = 400;
+      const maxDist = 60;
+
+      const deltaX = svgPt.x - centerX;
+      const deltaY = svgPt.y - centerY;
+      const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+      let normalizedX = deltaX / maxDist;
+      let normalizedY = deltaY / maxDist;
+
+      if (dist > maxDist) {
+        normalizedX = (deltaX / dist);
+        normalizedY = (deltaY / dist);
+      }
+
+      normalizedX = Math.max(-1, Math.min(1, normalizedX));
+      normalizedY = Math.max(-1, Math.min(1, normalizedY));
+
+      rightJoystickPosRef.current = { x: normalizedX, y: normalizedY };
+      setRightJoystickPos({ x: normalizedX, y: normalizedY });
+    }
+  };
+
+  const handleJoystickMouseUp = () => {
+    if (gamepadConnected) return;
+
+    if (isDraggingLeft) {
+      handleJoystickTouchEnd(true);
+    }
+    if (isDraggingRight) {
+      handleJoystickTouchEnd(false);
+    }
   };
 
   const handleBackClick = () => {
@@ -668,6 +1018,9 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                   maxWidth: '100vw'
                 }}
                 preserveAspectRatio="xMidYMid meet"
+                onMouseMove={handleJoystickMouseMove}
+                onMouseUp={handleJoystickMouseUp}
+                onMouseLeave={handleJoystickMouseUp}
               >
                 {/* Индикатор команд внутри корпуса контроллера */}
                 <rect x="490" y="90" width="220" height="20" rx="10" fill="rgba(0,0,0,0.5)" />
@@ -691,7 +1044,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={l2Value > 0 ? '#9333ea' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(6)}
                     onTouchStart={(e) => handleButtonTouch(e, 6)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                     style={{ touchAction: 'manipulation' }}
                   />
                   <rect x="60" y="56" width={l2Value * 1.75} height="41" rx="10" fill="#9333ea" opacity={l2Value / 100} pointerEvents="none" />
@@ -703,7 +1056,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={r2Value > 0 ? '#9333ea' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(7)}
                     onTouchStart={(e) => handleButtonTouch(e, 7)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                     style={{ touchAction: 'manipulation' }}
                   />
                   <rect x="965" y="56" width={r2Value * 1.75} height="41" rx="10" fill="#9333ea" opacity={r2Value / 100} pointerEvents="none" />
@@ -718,7 +1071,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[4] ? '#a855f7' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(4)}
                     onTouchStart={(e) => handleButtonTouch(e, 4)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="147.5" y="137" fill="white" fontSize="21" fontWeight="bold" textAnchor="middle" pointerEvents="none">L1</text>
 
@@ -728,7 +1081,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[5] ? '#a855f7' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(5)}
                     onTouchStart={(e) => handleButtonTouch(e, 5)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="1052.5" y="137" fill="white" fontSize="21" fontWeight="bold" textAnchor="middle" pointerEvents="none">R1</text>
                 </g>
@@ -741,7 +1094,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[12] ? '#eab308' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(12)}
                     onTouchStart={(e) => handleButtonTouch(e, 12)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="53.5" y="35" fill="white" fontSize="35" fontWeight="bold" textAnchor="middle" pointerEvents="none">↑</text>
 
@@ -751,7 +1104,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[13] ? '#eab308' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(13)}
                     onTouchStart={(e) => handleButtonTouch(e, 13)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="53.5" y="140" fill="white" fontSize="35" fontWeight="bold" textAnchor="middle" pointerEvents="none">↓</text>
 
@@ -761,7 +1114,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[14] ? '#eab308' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(14)}
                     onTouchStart={(e) => handleButtonTouch(e, 14)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="-2" y="88" fill="white" fontSize="38" fontWeight="bold" textAnchor="middle" pointerEvents="none">←</text>
 
@@ -771,7 +1124,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[15] ? '#eab308' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(15)}
                     onTouchStart={(e) => handleButtonTouch(e, 15)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="109" y="88" fill="white" fontSize="38" fontWeight="bold" textAnchor="middle" pointerEvents="none">→</text>
 
@@ -786,7 +1139,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[3] ? '#22c55e' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(3)}
                     onTouchStart={(e) => handleButtonTouch(e, 3)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="60" y="25" fill="white" fontSize="35" fontWeight="bold" textAnchor="middle" pointerEvents="none">△</text>
 
@@ -796,7 +1149,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[1] ? '#ef4444' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(1)}
                     onTouchStart={(e) => handleButtonTouch(e, 1)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="130" y="90" fill="white" fontSize="35" fontWeight="bold" textAnchor="middle" pointerEvents="none">○</text>
 
@@ -806,7 +1159,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[0] ? '#3b82f6' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(0)}
                     onTouchStart={(e) => handleButtonTouch(e, 0)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="60" y="155" fill="white" fontSize="35" fontWeight="bold" textAnchor="middle" pointerEvents="none">✕</text>
 
@@ -816,7 +1169,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[2] ? '#ec4899' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(2)}
                     onTouchStart={(e) => handleButtonTouch(e, 2)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="-10" y="90" fill="white" fontSize="35" fontWeight="bold" textAnchor="middle" pointerEvents="none">□</text>
                 </g>
@@ -825,27 +1178,25 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                 <g>
                   {/* Фоновый круг - зона для drag */}
                   <circle
+                    ref={leftJoystickBgRef}
                     cx="340" cy="400" r="85"
                     fill="rgba(255,255,255,0.05)"
                     stroke="rgba(255,255,255,0.3)"
                     strokeWidth="3"
-                    onTouchStart={(e) => handleJoystickTouchStart(e, true)}
-                    onTouchMove={(e) => handleJoystickTouchMove(e, true)}
-                    onTouchEnd={() => handleJoystickTouchEnd(true)}
                     className="touch-manipulation"
                     style={{ touchAction: 'none' }}
+                    onMouseDown={(e) => handleJoystickMouseDown(e, true)}
                   />
 
                   {/* Движущийся стик */}
                   <g transform={`translate(${340 + leftJoystickPos.x * 60}, ${400 + leftJoystickPos.y * 60})`}>
                     <circle
+                      ref={leftJoystickStickRef}
                       cx="0" cy="0" r="64"
-                      fill={isDraggingLeft ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.35)'}
-                      onTouchStart={(e) => handleJoystickTouchStart(e, true)}
-                      onTouchMove={(e) => handleJoystickTouchMove(e, true)}
-                      onTouchEnd={() => handleJoystickTouchEnd(true)}
-                      className="cursor-pointer transition-all touch-manipulation"
+                      fill="rgba(255,255,255,0.4)"
+                      className="cursor-pointer touch-manipulation"
                       style={{ touchAction: 'none' }}
+                      onMouseDown={(e) => handleJoystickMouseDown(e, true)}
                     />
                     <circle cx="0" cy="0" r="46" fill="rgba(100,100,255,0.3)" pointerEvents="none" />
                     <text x="0" y="10" fill="white" fontSize="24" fontWeight="bold" textAnchor="middle" pointerEvents="none">L</text>
@@ -858,7 +1209,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                   fill={buttons[10] ? '#6366f1' : 'rgba(255,255,255,0.2)'}
                   onClick={() => handleButtonClick(10)}
                   onTouchStart={(e) => handleButtonTouch(e, 10)}
-                  className="cursor-pointer transition-all touch-manipulation"
+                  className="cursor-pointer touch-manipulation"
                 />
                 <text x="520" y="343" fill="white" fontSize="16" fontWeight="bold" textAnchor="middle" pointerEvents="none">L3</text>
 
@@ -866,27 +1217,25 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                 <g>
                   {/* Фоновый круг - зона для drag */}
                   <circle
+                    ref={rightJoystickBgRef}
                     cx="860" cy="400" r="85"
                     fill="rgba(255,255,255,0.05)"
                     stroke="rgba(255,255,255,0.3)"
                     strokeWidth="3"
-                    onTouchStart={(e) => handleJoystickTouchStart(e, false)}
-                    onTouchMove={(e) => handleJoystickTouchMove(e, false)}
-                    onTouchEnd={() => handleJoystickTouchEnd(false)}
                     className="touch-manipulation"
                     style={{ touchAction: 'none' }}
+                    onMouseDown={(e) => handleJoystickMouseDown(e, false)}
                   />
 
                   {/* Движущийся стик */}
                   <g transform={`translate(${860 + rightJoystickPos.x * 60}, ${400 + rightJoystickPos.y * 60})`}>
                     <circle
+                      ref={rightJoystickStickRef}
                       cx="0" cy="0" r="64"
-                      fill={isDraggingRight ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.35)'}
-                      onTouchStart={(e) => handleJoystickTouchStart(e, false)}
-                      onTouchMove={(e) => handleJoystickTouchMove(e, false)}
-                      onTouchEnd={() => handleJoystickTouchEnd(false)}
-                      className="cursor-pointer transition-all touch-manipulation"
+                      fill="rgba(255,255,255,0.4)"
+                      className="cursor-pointer touch-manipulation"
                       style={{ touchAction: 'none' }}
+                      onMouseDown={(e) => handleJoystickMouseDown(e, false)}
                     />
                     <circle cx="0" cy="0" r="46" fill="rgba(100,100,255,0.3)" pointerEvents="none" />
                     <text x="0" y="10" fill="white" fontSize="24" fontWeight="bold" textAnchor="middle" pointerEvents="none">R</text>
@@ -899,7 +1248,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                   fill={buttons[11] ? '#6366f1' : 'rgba(255,255,255,0.2)'}
                   onClick={() => handleButtonClick(11)}
                   onTouchStart={(e) => handleButtonTouch(e, 11)}
-                  className="cursor-pointer transition-all touch-manipulation"
+                  className="cursor-pointer touch-manipulation"
                 />
                 <text x="680" y="343" fill="white" fontSize="16" fontWeight="bold" textAnchor="middle" pointerEvents="none">R3</text>
 
@@ -923,7 +1272,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[8] ? '#6b7280' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(8)}
                     onTouchStart={(e) => handleButtonTouch(e, 8)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="282.5" y="202" fill="white" fontSize="17" fontWeight="bold" textAnchor="middle" pointerEvents="none">Share</text>
 
@@ -933,7 +1282,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[16] ? '#2563eb' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(16)}
                     onTouchStart={(e) => handleButtonTouch(e, 16)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="600" y="348" fill="white" fontSize="23" fontWeight="bold" textAnchor="middle" pointerEvents="none">PS</text>
 
@@ -943,7 +1292,7 @@ export const JoystickPanel: React.FC<JoystickPanelProps> = ({
                     fill={buttons[9] ? '#6b7280' : 'rgba(255,255,255,0.2)'}
                     onClick={() => handleButtonClick(9)}
                     onTouchStart={(e) => handleButtonTouch(e, 9)}
-                    className="cursor-pointer transition-all touch-manipulation"
+                    className="cursor-pointer touch-manipulation"
                   />
                   <text x="917.5" y="202" fill="white" fontSize="17" fontWeight="bold" textAnchor="middle" pointerEvents="none">Options</text>
                 </g>

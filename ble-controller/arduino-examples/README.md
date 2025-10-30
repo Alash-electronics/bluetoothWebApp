@@ -35,10 +35,15 @@ Simple echo example that receives commands and sends responses back.
 #### 2. RC Car Control (`rc_car_control/`)
 Control example with WASD movement commands and additional buttons.
 
-#### 3. Smart Home Control (`smart_home_basic/`)
-Example for controlling home devices (LEDs, relays, sensors).
+#### 3. Smart Home Control - 2 Rooms (`smart_home_basic/`)
+Multi-room smart home for **Arduino Uno** (2 rooms max due to limited pins).
+Controls LEDs, relays, sensors with room switching.
 
-#### 4. Joystick Control (`Joystick_control/`)
+#### 4. Smart Home Control - 6 Rooms (`smart_home_mega/`)
+Full 6-room smart home for **Arduino MEGA 2560** (70 digital pins).
+Controls 36 relays (6 devices × 6 rooms) with independent states per room.
+
+#### 5. Joystick Control (`Joystick_control/`)
 PS4-style dual joystick control example.
 
 ### ESP32 Examples (No external module needed!)
@@ -84,7 +89,10 @@ The web app sends single-character commands (A-Z, a-z, 0-9). Each example implem
 ### Common Commands:
 - **Terminal Mode:** `1` (LED ON), `2` (LED OFF), `3` (Blink), `A`/`B` (test commands)
 - **RC Car Mode:** `W` (Forward), `S` (Backward), `A` (Left), `D` (Right), `X` (Stop)
-- **Smart Home Mode:** `L`/`l` (LED), `W`/`w` (Window), `M`/`m` (Music), `D`/`d` (Door), `F`/`f` (Fan), `K`/`k` (AC)
+- **Smart Home Mode:**
+  - Room selection: `1`-`6` (switch room, `1`-`2` for Uno, `1`-`6` for MEGA)
+  - Devices: `L`/`l` (LED), `W`/`w` (Window), `M`/`m` (Music), `D`/`d` (Door), `F`/`f` (Fan), `K`/`k` (AC)
+  - AC control: `H` (Heat), `C` (Cool), `Y` (Dry), `N` (Fan), `Z` (Temp+), `V` (Temp-)
 
 ## ESP32 Advantages
 
