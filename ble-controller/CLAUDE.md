@@ -462,6 +462,94 @@ ble-controller/
 └── CLAUDE.md               # This file
 ```
 
+## JoystickPanel: Critical Event Handling Pattern
+
+JoystickPanel requires **both native touch events AND React mouse events** to work on all platforms:
+
+### Touch Events (Mobile)
+
+Use **native addEventListener** with `{ passive: false }` to enable `preventDefault()`:
+
+```typescript
+// ❌ WRONG: React touch events are passive and can't preventDefault()
+<circle onTouchStart={handleTouch} />
+
+// ✅ CORRECT: Native events with passive: false
+useEffect(() => {
+  const element = elementRef.current;
+  if (!element) return;
+
+  const handler = (e: TouchEvent) => {
+    e.preventDefault(); // This only works with passive: false
+    // ... handle touch
+  };
+
+  element.addEventListener('touchstart', handler, { passive: false });
+  return () => element.removeEventListener('touchstart', handler);
+}, []);
+```
+
+**Critical: Synchronous Ref Updates**
+
+When updating joystick position, ALWAYS update refs BEFORE setState:
+
+```typescript
+// ✅ CORRECT ORDER
+leftJoystickPosRef.current = { x: normalizedX, y: normalizedY };  // 1. Update ref first
+setLeftJoystickPos({ x: normalizedX, y: normalizedY });            // 2. Then update state
+isDraggingLeftRef.current = true;                                   // 3. Update dragging ref
+setIsDraggingLeft(true);                                            // 4. Then dragging state
+```
+
+This ensures useEffect reads the latest values synchronously, preventing "ghost movement" bugs where joystick sends old positions after release.
+
+### Mouse Events (Desktop)
+
+Add **React mouse handlers** directly in JSX:
+
+```typescript
+// Mouse handlers for desktop
+<svg onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+  <circle ref={leftJoystickRef} onMouseDown={(e) => handleMouseDown(e, true)} />
+  <circle ref={rightJoystickRef} onMouseDown={(e) => handleMouseDown(e, false)} />
+</svg>
+```
+
+### Multi-Touch Support
+
+Track touch identifiers to support simultaneous control of both joysticks:
+
+```typescript
+const leftTouchIdRef = useRef<number | null>(null);
+const rightTouchIdRef = useRef<number | null>(null);
+
+// In touchstart handler:
+leftTouchIdRef.current = touch.identifier;
+
+// In global touchend handler:
+if (leftTouchIdRef.current === touch.identifier) {
+  handleJoystickTouchEnd(true);
+}
+```
+
+### Stop Command Throttling Prevention
+
+Send stop commands immediately by bypassing the throttling interval:
+
+```typescript
+const handleJoystickTouchEnd = (isLeft: boolean) => {
+  // Update refs synchronously
+  isDraggingLeftRef.current = false;
+  leftJoystickPosRef.current = { x: 0, y: 0 };
+
+  // Send stop command immediately (bypasses 50ms throttle)
+  const stopCommand = `J:50,50,50,50`;
+  bluetoothService.sendData(stopCommand + '\n');
+  lastCommandRef.current = stopCommand;
+  lastSendTimeRef.current = Date.now();
+};
+```
+
 ## Common Pitfalls
 
 1. **Forgetting to subscribe to service updates** - Components only receive props on mount, must subscribe for real-time updates
@@ -475,6 +563,9 @@ ble-controller/
 9. **Missing polling intervals** - Settings changes require polling (1000ms) to reflect in UI
 10. **Exceeding room limit** - Smart home supports maximum 6 rooms, enforce in UI
 11. **Forgetting text selection disable** - Add `select-none` class to prevent copy/paste on mobile
+12. **Using React touch events for joysticks** - React touch events are passive; use native addEventListener with `{ passive: false }` instead
+13. **Updating state before refs in joystick handlers** - Always update refs BEFORE setState to ensure synchronous reads in useEffect
+14. **Missing mouse events for desktop** - Joysticks need both touch (mobile) and mouse (desktop) event handlers
 
 ## Deployment
 
@@ -564,6 +655,7 @@ The `arduino-examples/` directory contains reference implementations for HM-10 m
 - **terminal_basic/** - Echo example for testing terminal mode
 - **rc_car_control/** - Motor control example for RC car mode
 - **smart_home_basic/** - Relay/LED control example for smart home mode
+- **Joystick_control/** - Vectored dual-joystick control with AlashMotorControlLite library
 - **README.md** - Hardware wiring diagrams and setup instructions
 
 **Key Details:**
@@ -573,6 +665,60 @@ The `arduino-examples/` directory contains reference implementations for HM-10 m
 - Commands are single characters matching the web app's protocol
 
 These examples are useful references when debugging communication issues or implementing new device features.
+
+### Joystick Protocol and Vectored Control
+
+JoystickPanel sends joystick data in the format: `J:LY,LX,RY,RX\n`
+
+**Values:**
+- Each axis: 0-100 (50 = center)
+- LY = Left joystick Y (0=down, 100=up)
+- LX = Left joystick X (0=left, 100=right)
+- RY = Right joystick Y (0=down, 100=up)
+- RX = Right joystick X (0=left, 100=right)
+
+**Example commands:**
+- `J:50,50,50,50` - Both joysticks centered (robot stopped)
+- `J:100,50,50,50` - Left joystick pushed up (forward)
+- `J:0,50,50,50` - Left joystick pushed down (backward)
+- `J:50,50,50,100` - Right joystick pushed right (turn right)
+
+**Throttling:**
+- Commands sent every 50ms (20 Hz) when joystick is moving
+- Stop command sent immediately when joystick released (bypasses throttle)
+
+**Arduino Implementation (Arcade Drive Mixing):**
+
+The Joystick_control example uses **vectored control** with left joystick for throttle and right joystick X for steering:
+
+```cpp
+int throttle = LY - 50;  // -50..50
+int steering = RX - 50;  // -50..50
+
+// Apply deadzone (±10)
+if (abs(throttle) < 10) throttle = 0;
+if (abs(steering) < 10) steering = 0;
+
+// Scale with MIN_MOTOR_SPEED=50, MAX_MOTOR_SPEED=100
+// (AlashMotorControlLite library accepts -100..100)
+
+// Arcade drive mixing
+float leftSpeed = throttle + steering;
+float rightSpeed = throttle - steering;
+
+// Normalize if exceeds range
+float maxMagnitude = max(abs(leftSpeed), abs(rightSpeed));
+if (maxMagnitude > 100) {
+  leftSpeed = leftSpeed / maxMagnitude * 100;
+  rightSpeed = rightSpeed / maxMagnitude * 100;
+}
+
+// Apply to motors
+motorLeft.setSpeed(leftSpeed);   // -100..100
+motorRight.setSpeed(rightSpeed); // -100..100
+```
+
+**Critical:** AlashMotorControlLite library uses percentage values (-100 to 100), NOT PWM values (0-255). MIN_MOTOR_SPEED=50 is the minimum speed where the robot actually starts moving.
 
 ## Browser Compatibility
 
