@@ -5,7 +5,7 @@
 **Универсальный контроллер для управления Arduino, ESP32 и другими Bluetooth устройствами**
 
 [![Web App](https://img.shields.io/badge/Web%20App-Открыть-success?style=for-the-badge&logo=google-chrome)](https://alash-electronics.github.io/bluetoothWebApp/)
-[![Android](https://img.shields.io/badge/Android-Скачать%20APK-blue?style=for-the-badge&logo=android)](https://github.com/Alash-electronics/bluetoothWebApp/releases/latest)
+[![Android](https://img.shields.io/badge/Android-Скачать%20APK-blue?style=for-the-badge&logo=android)](https://github.com/Alash-electronics/bluetoothWebApp/releases/download/v1.7/Alashed-BLE.apk)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
 [🌐 Web App](https://alash-electronics.github.io/bluetoothWebApp/) • [📱 Android APK](https://github.com/Alash-electronics/bluetoothWebApp/releases/latest) • [🔌 Arduino примеры](arduino-examples/) • [📖 Документация](CLAUDE.md)
