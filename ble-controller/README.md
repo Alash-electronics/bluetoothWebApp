@@ -51,7 +51,7 @@
 
 ### 📱 Android приложение
 
-**[⬇️ Скачать APK (v1.7, 4.0 MB)](https://github.com/Alash-electronics/bluetoothWebApp/releases/latest)**
+**[⬇️ Скачать APK (v1.7, 4.0 MB)](https://github.com/Alash-electronics/bluetoothWebApp/releases/download/v1.7/Alashed-BLE.apk)**
 
 - Минимум: Android 7.0 (API 24+)
 - Нативная BLE поддержка
