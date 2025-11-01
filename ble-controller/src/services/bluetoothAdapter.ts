@@ -8,7 +8,7 @@
  */
 
 import { Capacitor } from '@capacitor/core';
-import { BleClient, dataViewToText } from '@capacitor-community/bluetooth-le';
+import { BleClient } from '@capacitor-community/bluetooth-le';
 import type { BleDevice } from '@capacitor-community/bluetooth-le';
 import type { ConnectionStatus, BluetoothDevice } from './bluetoothService';
 
@@ -41,6 +41,8 @@ class WebBluetoothAdapter implements IBluetoothAdapter {
   private connectionStatus: ConnectionStatus = 'disconnected';
   private onDataReceivedCallback: ((data: string) => void) | null = null;
   private onConnectionStatusCallback: ((status: ConnectionStatus) => void) | null = null;
+  private receiveBuffer: string = '';
+  private textDecoder: TextDecoder = new TextDecoder('utf-8', { fatal: false });
 
   isSupported(): boolean {
     return 'bluetooth' in navigator;
@@ -115,6 +117,7 @@ class WebBluetoothAdapter implements IBluetoothAdapter {
     this.nativeDevice = null;
     this.server = null;
     this.characteristic = null;
+    this.receiveBuffer = '';
     this.connectionStatus = 'disconnected';
     this.onConnectionStatusCallback?.('disconnected');
   }
@@ -141,9 +144,24 @@ class WebBluetoothAdapter implements IBluetoothAdapter {
     const value = target.value;
 
     if (value) {
-      const decoder = new TextDecoder();
-      const text = decoder.decode(value);
-      this.onDataReceivedCallback?.(text);
+      // Use streaming decoder to handle multi-byte UTF-8 characters split across chunks
+      const chunk = this.textDecoder.decode(value, { stream: true });
+
+      // Accumulate data in buffer
+      this.receiveBuffer += chunk;
+
+      // Check for newline and process complete messages
+      const lines = this.receiveBuffer.split('\n');
+
+      // If we have at least one newline, process complete lines
+      if (lines.length > 1) {
+        // Process all complete lines (all except the last incomplete one)
+        for (let i = 0; i < lines.length - 1; i++) {
+          this.onDataReceivedCallback?.(lines[i]);
+        }
+        // Keep the incomplete line in the buffer
+        this.receiveBuffer = lines[lines.length - 1];
+      }
     }
   }
 
@@ -152,6 +170,7 @@ class WebBluetoothAdapter implements IBluetoothAdapter {
     this.nativeDevice = null;
     this.server = null;
     this.characteristic = null;
+    this.receiveBuffer = '';
     this.connectionStatus = 'disconnected';
     this.onConnectionStatusCallback?.('disconnected');
   }
@@ -193,9 +212,32 @@ class CapacitorBluetoothAdapter implements IBluetoothAdapter {
   private connectionStatus: ConnectionStatus = 'disconnected';
   private onDataReceivedCallback: ((data: string) => void) | null = null;
   private onConnectionStatusCallback: ((status: ConnectionStatus) => void) | null = null;
+  private receiveBuffer: string = '';
+  private textDecoder: TextDecoder = new TextDecoder('utf-8', { fatal: false });
 
   isSupported(): boolean {
     return Capacitor.isNativePlatform();
+  }
+
+  private processBufferedData(value: DataView): void {
+    // Use streaming decoder to handle multi-byte UTF-8 characters split across chunks
+    const chunk = this.textDecoder.decode(value, { stream: true });
+
+    // Accumulate data in buffer
+    this.receiveBuffer += chunk;
+
+    // Check for newline and process complete messages
+    const lines = this.receiveBuffer.split('\n');
+
+    // If we have at least one newline, process complete lines
+    if (lines.length > 1) {
+      // Process all complete lines (all except the last incomplete one)
+      for (let i = 0; i < lines.length - 1; i++) {
+        this.onDataReceivedCallback?.(lines[i]);
+      }
+      // Keep the incomplete line in the buffer
+      this.receiveBuffer = lines[lines.length - 1];
+    }
   }
 
   async connect(): Promise<BluetoothDevice> {
@@ -229,8 +271,7 @@ class CapacitorBluetoothAdapter implements IBluetoothAdapter {
         UART_TX_CHARACTERISTIC_UUID,
         (value) => {
           // Data received callback
-          const text = dataViewToText(value);
-          this.onDataReceivedCallback?.(text);
+          this.processBufferedData(value);
         }
       );
 
@@ -285,9 +326,7 @@ class CapacitorBluetoothAdapter implements IBluetoothAdapter {
         UART_TX_CHARACTERISTIC_UUID,
         (value) => {
           // Data received callback
-          const text = dataViewToText(value);
-          console.log('[CapacitorAdapter] Data received:', text);
-          this.onDataReceivedCallback?.(text);
+          this.processBufferedData(value);
         }
       );
 
@@ -329,6 +368,7 @@ class CapacitorBluetoothAdapter implements IBluetoothAdapter {
     }
     this.device = null;
     this.bleDevice = null;
+    this.receiveBuffer = '';
     this.connectionStatus = 'disconnected';
     this.onConnectionStatusCallback?.('disconnected');
   }
@@ -354,6 +394,7 @@ class CapacitorBluetoothAdapter implements IBluetoothAdapter {
   private handleDisconnect(): void {
     this.device = null;
     this.bleDevice = null;
+    this.receiveBuffer = '';
     this.connectionStatus = 'disconnected';
     this.onConnectionStatusCallback?.('disconnected');
   }
