@@ -372,7 +372,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
           <div className="text-gray-500 text-center mt-8 landscape:mt-2 sm:mt-8 sm:landscape:mt-8">No messages yet...</div>
         )}
         {logs.map((log, index) => (
-          <div key={index} className="mb-1 landscape:mb-0.5 sm:mb-1 sm:landscape:mb-1">
+          <div key={index} className="mb-1 landscape:mb-0.5 sm:mb-1 sm:landscape:mb-1 break-words">
             <span className="text-gray-500">{log.timestamp} </span>
             <span className={getLogColor(log.type)}>{log.message}</span>
           </div>
